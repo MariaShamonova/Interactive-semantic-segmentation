@@ -1,7 +1,10 @@
 from networkx import DiGraph
+import networkx as nx
+from PIL import Image
 from collections import deque
 import time
-
+import math
+import numpy as np
 
 FILE = 'test.txt'
 
@@ -200,9 +203,33 @@ def dfs(G, u, n):
                 stack.append(node)
     return reachable
 
+def setWeight(h, p1, p2):
+    return math.exp(-1/h*math.sqrt((int(p1[0]) - int(p2[0]))**2 + (int(p1[1]) - int(p2[1]))**2 + (int(p1[2]) - int(p2[2]))**2))
+  
 
 if __name__ == '__main__':
     n, m, G = parse_file()
+    
+    img = Image.open('image.jpg')
+    arr = np.asarray(img, dtype='uint8')
+    
+    graph = nx.DiGraph()
+    
+    rows = len(arr)
+    columns = len(arr[0])
+    
+    count_of_nodes = rows * columns
+    
+    for i in range(count_of_nodes): 
+            graph.add_node(i)
+        
+    h =  int(input())
+   
+    for i in range(len(arr)-2):
+        for j in range(len(arr[i]) - 2):
+          graph.add_edge(i, j, capacity=setWeight(h, arr[i][j], arr[i][j+1]))
+          
+   
     # n = 10000
     # m = (n-1)**2 - 1
     # G = generate_max_graph(n)
