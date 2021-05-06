@@ -202,14 +202,11 @@ def dfs(G, u, n):
 
 
 if __name__ == '__main__':
-    # n, m, G = parse_file()
-    n = 10000
-    m = (n-1)**2 - 1
-    G = generate_max_graph(n)
-    print(G.size())
-    t0 = time.time()
+    n, m, G = parse_file()
+    # n = 10000
+    # m = (n-1)**2 - 1
+    # G = generate_max_graph(n)
+    # print(G.size())
     mf = max_flow(G, n, m)
-    t1 = time.time()
     print(mf)
-    print(t1-t0)
 
