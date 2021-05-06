@@ -1,5 +1,6 @@
 from networkx import DiGraph
 from collections import deque
+import time
 
 
 FILE = 'test.txt'
@@ -8,15 +9,23 @@ FILE = 'test.txt'
 def generate_max_graph(n):
     G = DiGraph()
     G.add_nodes_from([i+1 for i in range(n)])
-    for i in range(2, n):
-        for j in range(2, n):
-            if i != j:
-                G.add_edge(i, j, capacity=100, flow=0)
-    for i in range(2, n):
-        G.add_edge(1, i, capacity=10000, flow=0)
-    for i in range(3, n):
-        G.add_edge(i, n, capacity=100, flow=0)
-    G.add_edge(2, n, capacity=10000, flow=0)
+    k = int((n - 2) / 2)
+    for i in range(1, k+1):
+        G.add_edge(i, i + 1, capacity=k-i+2, flow=0)
+    for i in range(1, k+2):
+        G.add_edge(i, k+2, capacity=1, flow=0)
+    for i in range(k+2, n):
+        G.add_edge(i, i+1, capacity=k+1, flow=0)
+    G.add_edge(k+1, n, capacity=1, flow=0)
+    # for i in range(2, n):
+    #     for j in range(2, n):
+    #         if i != j:
+    #             G.add_edge(i, j, capacity=100, flow=0)
+    # for i in range(2, n):
+    #     G.add_edge(1, i, capacity=10000, flow=0)
+    # for i in range(3, n):
+    #     G.add_edge(i, n, capacity=100, flow=0)
+    # G.add_edge(2, n, capacity=10000, flow=0)
     return G
 
 
@@ -27,7 +36,7 @@ class ResidualNetwork(object):
             self.G.add_node(node)
         for node, nbrsdict in self.G.adjacency():
             for nbr, dict in nbrsdict.items():
-                dict.update({'forward': True})
+                dict.update({'flow': 0, 'forward': True})
 
     def neighbours(self, u):
         return self.G.adj[u]
@@ -62,7 +71,7 @@ def parse_file(file=FILE):
         G.add_nodes_from([i+1 for i in range(n)])
         for line in f:
             node1, node2, capacity = map(int, line.split())
-            G.add_edge(node1, node2, capacity=capacity, flow=0)
+            G.add_edge(node1, node2, capacity=capacity)
         return n, m, G
 
 
@@ -193,10 +202,14 @@ def dfs(G, u, n):
 
 
 if __name__ == '__main__':
-    n, m, G = parse_file()
-    # n = 100
-    # m = (n-1)**2 - 1
-    # G = generate_max_graph(n)
-    # print(G.size())
-    print(max_flow(G, n, m))
+    # n, m, G = parse_file()
+    n = 10000
+    m = (n-1)**2 - 1
+    G = generate_max_graph(n)
+    print(G.size())
+    t0 = time.time()
+    mf = max_flow(G, n, m)
+    t1 = time.time()
+    print(mf)
+    print(t1-t0)
 
