@@ -234,18 +234,58 @@ if __name__ == '__main__':
     
     count_of_nodes = rows * columns
     
-    for i in range(count_of_nodes+1): 
-            graph.add_node(i)  
+    #for i in range(1, count_of_nodes+2): 
+    #        graph.add_node(i)  
             
-    graph.add_node(count_of_nodes+1)
-        
+    #graph.add_node(count_of_nodes+2)
+    
+    for i in range(1, rows):
+        for j in range(1, columns):
+            graph.add_node((i - 1) * columns + j + 1)
+            
+    graph.add_node(0)
+    graph.add_node(rows*columns+2)
+    
     h =  int(input())
    
-    for i in range(1, len(arr)-2):
-        for j in range(1, len(arr[i]) - 2):
-            graph.add_edge(i, j, capacity=setWeight(h, arr[i][j], arr[i][j+1]))
-            graph.add_edge(0, j, capacity=math.inf)
-            graph.add_edge(count_of_nodes+1, j, capacity=math.inf)
+    
+    for i in range(1, rows):
+       for j in range(1, columns):
+           #Левый соседний пиксель
+           if (j != 1): 
+               graph.add_edge(
+                   (i - 1) * columns + j + 1, 
+                   (i - 1) * m + j, 
+                   capacity=setWeight(h, arr[i][j], arr[i][j-1]))
+           #Правый соседний пиксель
+           if (j != columns - 1): 
+               graph.add_edge(
+                   (i - 1) * columns + j + 1, 
+                   (i - 1) * m + j + 2,
+                   capacity=setWeight(h, arr[i][j], arr[i][j+1]))
+           #Нижний соседний пиксель
+           if (i != rows - 1): 
+               graph.add_edge(
+                   (i - 1) * columns + j + 1, 
+                   (i - 2) * m + j + 1, 
+                   capacity=setWeight(h, arr[i][j], arr[i-1][j]))
+           #Верхний соседний пиксель
+           if (i !=  1): 
+               graph.add_edge(
+                   (i - 1) * columns + j + 1, 
+                   i * m + j + 1, 
+                   capacity=setWeight(h, arr[i][j], arr[i-1][j]))
+           
+           
+   
+   
+    #for i in range(1, rows-2):
+    #    for j in range(i, columns - 2):
+    #        if ((i != j) and (abs(i % rows - j % columns)) <= 1):
+    #            graph.add_edge(i, j, capacity=setWeight(h, arr[i][j], arr[i][j+1]))
+    #            graph.add_edge(j, i, capacity=setWeight(h, arr[i][j], arr[i][j+1]))
+    #            graph.add_edge(1, j, capacity=math.inf)
+    #            graph.add_edge(count_of_nodes+2, j, capacity=math.inf)
             
     G = graph
     m = graph.number_of_edges() 
