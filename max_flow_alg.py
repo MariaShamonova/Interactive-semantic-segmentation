@@ -5,7 +5,8 @@ from collections import deque
 import time
 import math
 import numpy as np
-
+import matplotlib.pyplot as plt
+import skimage.color as color
 FILE = 'test.txt'
 
 
@@ -205,13 +206,26 @@ def dfs(G, u, n):
 
 def setWeight(h, p1, p2):
     return math.exp(-1/h*math.sqrt((int(p1[0]) - int(p2[0]))**2 + (int(p1[1]) - int(p2[1]))**2 + (int(p1[2]) - int(p2[2]))**2))
-  
+
+def image_show(image, nrows=1, ncols=1, cmap='gray'):
+    fig, ax = plt.subplots(nrows=nrows, ncols=ncols, figsize=(14, 14))
+    ax.imshow(image, cmap='gray')
+    ax.axis('off')
+    return fig, ax
 
 if __name__ == '__main__':
     n, m, G = parse_file()
     
+    s = [152, 94, 56]
+    t = [255,255,255]
+    
     img = Image.open('image.jpg')
     arr = np.asarray(img, dtype='uint8')
+    
+    #from skimage import io
+    #image = io.imread('image.jpg') 
+    plt.imshow(arr);
+    
     
     graph = nx.DiGraph()
     
@@ -220,16 +234,30 @@ if __name__ == '__main__':
     
     count_of_nodes = rows * columns
     
-    for i in range(count_of_nodes): 
-            graph.add_node(i)
+    for i in range(count_of_nodes+1): 
+            graph.add_node(i)  
+            
+    graph.add_node(count_of_nodes+1)
         
     h =  int(input())
    
-    for i in range(len(arr)-2):
-        for j in range(len(arr[i]) - 2):
-          graph.add_edge(i, j, capacity=setWeight(h, arr[i][j], arr[i][j+1]))
-          
-   
+    for i in range(1, len(arr)-2):
+        for j in range(1, len(arr[i]) - 2):
+            graph.add_edge(i, j, capacity=setWeight(h, arr[i][j], arr[i][j+1]))
+            graph.add_edge(0, j, capacity=math.inf)
+            graph.add_edge(count_of_nodes+1, j, capacity=math.inf)
+            
+    G = graph
+    m = graph.number_of_edges() 
+    n = graph.number_of_nodes()
+    print(rows)
+    print(columns)
+    print(n)
+    print(m)
+    #image_gray = color.rgb2gray(image) 
+    #image_show(image_gray)
+    #print(image_gray)
+ 
     # n = 10000
     # m = (n-1)**2 - 1
     # G = generate_max_graph(n)
