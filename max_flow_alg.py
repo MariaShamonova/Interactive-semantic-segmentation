@@ -216,17 +216,18 @@ def bfs(G, u, n):  # Поиск в ширину
 
 def dfs(G, u, n):  # Поиск в глубину
     visited = [False for i in range(n)]
-    reachable = []
+    reachable = [u]
     stack = deque()
     stack.append(u)
     visited[u] = True
     while len(stack) != 0:
         cur = stack.pop()
-        for node in G.adj[cur].keys():
-            if not visited[node]:
-                reachable.append(node)
-                visited[node] = True
-                stack.append(node)
+        for node, dict in G.neighbours(cur).items():
+            for info in dict.values():
+                if info.get('flow') != 0 and not visited[node]:
+                    reachable.append(node)
+                    visited[node] = True
+                    stack.append(node)
     return reachable
 
 
@@ -239,5 +240,6 @@ if __name__ == '__main__':
     # t0 = time.time()
     Gf, mf = max_flow(G, n, m)
     # print(time.time()-t0)
+    print(dfs(Gf, 0, n))
     print(mf)
 
