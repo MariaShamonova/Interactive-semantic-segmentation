@@ -1,8 +1,8 @@
-from networkx import DiGraph
+from networkx import DiGraph, MultiDiGraph
 from collections import deque
 import time
 
-FILE = 'test1.txt'
+FILE = 'test2.txt'
 
 
 def generate_max_graph(n):
@@ -30,22 +30,25 @@ def generate_max_graph(n):
 
 class ResidualNetwork(object):
     def __init__(self, Gc):
-        self.G = Gc.copy()
-        for node, nbrsdict in self.G.adjacency():
+        self.G = MultiDiGraph()
+        for node in Gc.nodes():
+            self.G.add_node(node)
+        for node, nbrsdict in Gc.adjacency():
             for nbr, dict in nbrsdict.items():
                 capacity = dict.get('capacity')
-                dict.update({'flow': capacity, 'forward': True})
-                # self.G.add_edge(nbr, node, capacity=capacity, flow=0, forward=False)
-        edges = tuple(G.edges())
-        for edge in edges:
-            capacity = self.edge(edge[0], edge[1]).get('capacity')
-            self.G.add_edge(edge[1], edge[0], capacity=capacity, flow=0, forward=False)
+                # dict.update({'flow': capacity, 'forward': True})
+                self.G.add_edge(node, nbr, 'forward', capacity=capacity, flow=capacity, forward=True)
+                self.G.add_edge(nbr, node, 'backward', capacity=capacity, flow=0, forward=False)
+        # edges = tuple(G.edges())
+        # for edge in edges:
+        #     capacity = self.edge(edge[0], edge[1]).get('capacity')
+        #     self.G.add_edge(edge[1], edge[0], capacity=capacity, flow=0, forward=False)
 
     def neighbours(self, u):
         return self.G.adj[u]
 
-    def edge(self, u, v):
-        return self.G.edges[u, v]
+    def edge(self, u, v, d):
+        return self.G.edges[u, v, d]
 
     def has_edge(self, u, v):
         return self.G.has_edge(u, v)
@@ -61,8 +64,9 @@ class ResidualNetwork(object):
         for node in self.G.nodes():
             Gc.add_node(node)
         for edge in self.G.edges():
-            info = self.G.edges[edge[0], edge[1]]
-            if info.get('forward') and info.get('flow') != 0:
+            info = self.G.get_edge_data(edge[0], edge[1])
+            info = info.get('forward')
+            if info and info.get('flow') != 0:
                 Gc.add_edge(edge[1], edge[0])
         return Gc
 
@@ -81,8 +85,9 @@ def parse_file(file=FILE):  # Обработка файла, создание г
 def relabel(G, h, u, m):
     neighbours = []
     for node, dict in G.neighbours(u).items():
-        if dict.get('flow') != 0:
-            neighbours.append(node)
+        for info in dict.values():
+            if info.get('flow') != 0:
+                neighbours.append(node)
     min = m
     for node in neighbours:
         if h[node] < min:
@@ -90,8 +95,8 @@ def relabel(G, h, u, m):
     h[u] = min+1
 
 
-def push(G, e, u, v):
-    info = G.edge(u, v)
+def push(G, e, u, v, direction):
+    info = G.edge(u, v, direction)
     # Проверяем направление ребра в остаточной сети
     # if info.get('forward'):
     #     delta = min(e[u], info.get('capacity')-info.get('flow'))
@@ -101,8 +106,11 @@ def push(G, e, u, v):
     # Изменяем значения избытков, удаляем или добавляем прямые/обратные ребра в остаточной сеи при необходимости
     e[u] -= delta
     e[v] += delta
-    G.edge(v, u)['flow'] += delta
-    G.edge(u, v)['flow'] -= delta
+    G.edge(u, v, direction)['flow'] -= delta
+    if direction == 'forward':
+        G.edge(v, u, 'backward')['flow'] += delta
+    else:
+        G.edge(v, u, 'forward')['flow'] += delta
     # if G.has_edge(v, u):
     #     G.edge(v, u)['flow'] += delta
     # else:
@@ -124,9 +132,9 @@ def max_flow(G, n, m):  # Алгоритм макс потока v0.02
 
     neighbours = Gf.neighbours(0).keys()  # Проталкиваем поток по всем ребрам истока
     for node in neighbours:
-        capacity = Gf.edge(0, node)['capacity']
-        Gf.edge(0, node)['flow'] = 0
-        Gf.edge(node, 0)['flow'] = capacity
+        capacity = Gf.edge(0, node, 'forward')['capacity']
+        Gf.edge(0, node, 'forward')['flow'] = 0
+        Gf.edge(node, 0, 'backward')['flow'] = capacity
         e[node] = capacity
         e[0] -= capacity
         # Gf.add_edge(node, 0, capacity=capacity, flow=capacity, forward=False)
@@ -164,14 +172,17 @@ def max_flow(G, n, m):  # Алгоритм макс потока v0.02
             has_neighbour_with_h = False
             neighbour_with_h = 0
             e_in_neighbour = 0
+            direction_to_neighbour = None
             for node, dict in neighbours.items():  # Поиск такого соседа
-                if h[cur] == h[node] + 1 and dict.get('flow') != 0:
-                    has_neighbour_with_h = True
-                    neighbour_with_h = node
-                    e_in_neighbour = e[node]
-                    break
+                for direction, info in dict.items():
+                    if h[cur] == h[node] + 1 and info.get('flow') != 0:
+                        has_neighbour_with_h = True
+                        neighbour_with_h = node
+                        e_in_neighbour = e[node]
+                        direction_to_neighbour = direction
+                        break
             if has_neighbour_with_h:  # Если сосед найден, делаем push
-                push(Gf, e, cur, neighbour_with_h)
+                push(Gf, e, cur, neighbour_with_h, direction_to_neighbour)
                 gr_counter += 1
                 if e_in_neighbour == 0 and neighbour_with_h not in (0, n-1):  # Добавляем соседва в очередь,
                     queue.append(neighbour_with_h)  # если его избыток был равен 0
