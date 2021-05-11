@@ -1,5 +1,6 @@
 from networkx import DiGraph, MultiDiGraph
 from collections import deque
+import os
 import time
 
 FILE = 'test2.txt'
@@ -37,8 +38,8 @@ class ResidualNetwork(object):
             for nbr, dict in nbrsdict.items():
                 capacity = dict.get('capacity')
                 # dict.update({'flow': capacity, 'forward': True})
-                self.G.add_edge(node, nbr, 'forward', capacity=capacity, flow=capacity, forward=True)
-                self.G.add_edge(nbr, node, 'backward', capacity=capacity, flow=0, forward=False)
+                self.G.add_edge(node, nbr, 'forward', capacity=capacity, flow=capacity)
+                self.G.add_edge(nbr, node, 'backward', capacity=capacity, flow=0)
         # edges = tuple(G.edges())
         # for edge in edges:
         #     capacity = self.edge(edge[0], edge[1]).get('capacity')
@@ -50,14 +51,25 @@ class ResidualNetwork(object):
     def edge(self, u, v, d):
         return self.G.edges[u, v, d]
 
-    def has_edge(self, u, v):
-        return self.G.has_edge(u, v)
+    def has_edge(self, u, v, d):
+        return self.G.has_edge(u, v, d)
 
     def add_edge(self, u, v, **kwargs):
         self.G.add_edge(u, v, **kwargs)
 
     def remove_edge(self, u, v):
         self.G.remove_edge(u, v)
+
+    def direct_copy(self):
+        Gc = DiGraph()
+        for node in self.G.nodes():
+            Gc.add_node(node)
+        for edge in self.G.edges():
+            info = self.G.get_edge_data(edge[0], edge[1])
+            info = info.get('forward')
+            if info and info.get('flow') != 0:
+                Gc.add_edge(edge[0], edge[1])
+        return Gc
 
     def reversed_copy(self):
         Gc = DiGraph()
@@ -82,13 +94,13 @@ def parse_file(file=FILE):  # Обработка файла, создание г
         return G, n, m
 
 
-def relabel(G, h, u, m):
+def relabel(G, h, u, n):
     neighbours = []
     for node, dict in G.neighbours(u).items():
         for info in dict.values():
             if info.get('flow') != 0:
                 neighbours.append(node)
-    min = m
+    min = n**2
     for node in neighbours:
         if h[node] < min:
             min = h[node]
@@ -132,13 +144,15 @@ def max_flow(G, n, m):  # Алгоритм макс потока v0.02
 
     neighbours = Gf.neighbours(0).keys()  # Проталкиваем поток по всем ребрам истока
     for node in neighbours:
-        capacity = Gf.edge(0, node, 'forward')['capacity']
-        Gf.edge(0, node, 'forward')['flow'] = 0
-        Gf.edge(node, 0, 'backward')['flow'] = capacity
-        e[node] = capacity
-        e[0] -= capacity
-        # Gf.add_edge(node, 0, capacity=capacity, flow=capacity, forward=False)
-        queue.append(node)
+        if Gf.has_edge(0, node, 'forward'):
+            capacity = Gf.edge(0, node, 'forward')['capacity']
+            Gf.edge(0, node, 'forward')['flow'] = 0
+            Gf.edge(node, 0, 'backward')['flow'] = capacity
+            e[node] = capacity
+            e[0] -= capacity
+            # Gf.add_edge(node, 0, capacity=capacity, flow=capacity, forward=False)
+            if node != n-1:
+                queue.append(node)
     # list_neighbours = []
     # for node in neighbours:
     #     list_neighbours.append(node)
@@ -158,11 +172,12 @@ def max_flow(G, n, m):  # Алгоритм макс потока v0.02
         has_neighbour_with_h = False
         while e[cur] != 0:
             if gr_counter >= m:  # Если выполнили m операций push\relabel выполняем global relabeling
-                Gc = Gf.reversed_copy()
+                Gc = Gf.direct_copy()
                 d = bfs(Gc, 0, n)
                 for i in range(1, n):
                     if d[i] != 0:
                         h[i] = h[0] + d[i]
+                Gc = Gf.reversed_copy()
                 d = bfs(Gc, n-1, n)
                 for i in range(1, n):
                     if d[i] != 0:
@@ -189,7 +204,7 @@ def max_flow(G, n, m):  # Алгоритм макс потока v0.02
             else:
                 break
         if not has_neighbour_with_h:  # Если текущая вершина, не имеет соседей с h(v) = h(u) - 1, тогда
-            relabel(Gf, h, cur, m)  # текущую вершину нужно поднять
+            relabel(Gf, h, cur, n)  # текущую вершину нужно поднять
             queue.append(cur)  # Добавляем текущую вершину в конец очереди
             gr_counter += 1
     return Gf, e[n-1]
@@ -198,6 +213,7 @@ def max_flow(G, n, m):  # Алгоритм макс потока v0.02
 def bfs(G, u, n):  # Поиск в ширину
     d = [0 for i in range(n)]
     visited = [False for i in range(n)]
+    visited_queue = deque()
     queue = deque()
     queue.append(u)
     visited[u] = True
@@ -206,10 +222,7 @@ def bfs(G, u, n):  # Поиск в ширину
         for node in G.adj[cur].keys():
             if not visited[node]:
                 d[node] = d[cur] + 1
-                try:
-                    visited[node] = True
-                except IndexError:
-                    print(node, cur)
+                visited[node] = True
                 queue.append(node)
     return d
 
@@ -232,14 +245,21 @@ def dfs(G, u, n):  # Поиск в глубину
 
 
 if __name__ == '__main__':
-    G, n, m = parse_file()
     # n = 10000
     # m = (n-1)**2 - 1
     # G = generate_max_graph(n)
     # print(G.size())
-    # t0 = time.time()
-    Gf, mf = max_flow(G, n, m)
-    # print(time.time()-t0)
-    print(dfs(Gf, 0, n))
-    print(mf)
+
+    dir = "MaxFlow-tests"
+    file = 'test_rd07.txt'
+    for file in os.listdir(dir):
+        G, n, m = parse_file(os.path.join(dir, file))
+        print(file)
+        t0 = time.time()
+        Gf, mf = max_flow(G, n, m)
+        t1 = time.time()
+        print('Time: {}'.format(t1-t0))
+        print('Max flow: {}'.format(mf))
+
+    # print(dfs(Gf, 0, n))
 
