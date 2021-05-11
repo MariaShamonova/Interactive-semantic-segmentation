@@ -1,4 +1,4 @@
 .idea
 *.png
 *.jpg
-/MaxFlow-test/*
+/MaxFlow-tests/*
