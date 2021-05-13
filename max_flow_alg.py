@@ -1,4 +1,4 @@
-from networkx import DiGraph, MultiDiGraph
+from networkx import DiGraph
 from collections import deque
 import os
 import time
@@ -163,10 +163,6 @@ def relabel(G, h, u, n):
 
 def push(G, e, u, v, direction):
     flow = G.get_flow(u, v, direction)
-    # Проверяем направление ребра в остаточной сети
-    # if info.get('forward'):
-    #     delta = min(e[u], info.get('capacity')-info.get('flow'))
-    # else:
     delta = min(e[u], flow)
 
     # Изменяем значения избытков, удаляем или добавляем прямые/обратные ребра в остаточной сеи при необходимости
@@ -204,13 +200,6 @@ def max_flow(G, n, m):  # Алгоритм макс потока v0.02
             Gf.update_flow(node, 0, 'backward', capacity, True)
             e[node] = capacity
             e[0] -= capacity
-            # if node != n-1:
-            #     queue.append(node)
-    # list_neighbours = []
-    # for node in neighbours:
-    #     list_neighbours.append(node)
-    # for node in list_neighbours:
-    #     Gf.remove_edge(0, node)
 
     d, visited_queue, visited = Gf.reversed_copy_bfs_for_t()
     h[0] = n
@@ -230,11 +219,9 @@ def max_flow(G, n, m):  # Алгоритм макс потока v0.02
         while e[cur] != 0:
             if gr_counter >= n:  # Если выполнили m операций push\relabel выполняем global relabeling
                 d, visited_queue_s, visited_s = Gf.reversed_copy_bfs_for_s()
-                # d = bfs(Gc, 0, n)
                 for node in visited_queue:
                     h[node] = h[0] + d[node]
                 d, visited_queue_t, visited_t = Gf.reversed_copy_bfs_for_t()
-                # d = bfs(Gc, n-1, n)
                 for node in visited_queue:
                     h[node] = d[node]
                 gr_counter = 0
