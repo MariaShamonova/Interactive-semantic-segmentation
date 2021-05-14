@@ -17,6 +17,7 @@ class ResidualNetwork(object):
             self.flow.append({})
         for node, nbrsdict in Gc.adjacency():
             for nbr, dict in nbrsdict.items():
+                #if node != n-1:
                 capacity = dict.get('capacity')
                 self.capacity[node].update({nbr: capacity})
                 if self.flow[node].get(nbr):
@@ -53,7 +54,61 @@ class ResidualNetwork(object):
     def has_edge(self, u, v, d):
         return True if self.flow[u].get(v).get(d) else False
 
-    def reversed_copy_bfs_for_s(self):
+    def direct_bfs_for_s_fast(self):
+        d = [0 for i in range(self.n)]
+        visited = [False for i in range(self.n)]
+        visited_queue = deque()
+        queue = deque()
+        visited[0] = True
+        for nbr, dict in self.neighbours(0).items():
+            for direction, flow in dict.items():
+                capacity = self.get_capacity(0, nbr, direction)
+                if direction == 'forward' and flow != capacity and nbr != n-1:
+                    d[nbr] = 1
+                    visited[nbr] = True
+                    queue.append(nbr)
+                    visited_queue.append(nbr)
+        while len(queue) != 0:
+            cur = queue.popleft()
+            for nbr, dict in self.neighbours(cur).items():
+                for direction, flow in dict.items():
+                    capacity = self.get_capacity(cur, nbr, direction)
+                    if direction == 'forward' and flow != capacity and nbr != n-1 \
+                            and not visited[nbr]:
+                        d[nbr] = d[cur] + 1
+                        visited[nbr] = True
+                        queue.append(nbr)
+                        visited_queue.append(nbr)
+        return d, visited_queue, visited
+
+    def direct_bfs_for_s(self):
+        d = [0 for i in range(self.n)]
+        visited = [False for i in range(self.n)]
+        visited_queue = deque()
+        queue = deque()
+        visited[0] = True
+        for nbr, dict in self.neighbours(0).items():
+            for direction, flow in dict.items():
+                capacity = self.get_capacity(0, nbr, direction)
+                if direction == 'forward' and flow != capacity and nbr != n-1:
+                    d[nbr] = 1
+                    visited[nbr] = True
+                    queue.append(nbr)
+                    visited_queue.append(nbr)
+        while len(queue) != 0:
+            cur = queue.popleft()
+            for nbr, dict in self.neighbours(cur).items():
+                for direction, flow in dict.items():
+                    capacity = self.get_capacity(cur, nbr, direction)
+                    if direction == 'forward' and flow != capacity and flow != 0 and nbr != n-1 \
+                            and not visited[nbr]:
+                        d[nbr] = d[cur] + 1
+                        visited[nbr] = True
+                        queue.append(nbr)
+                        visited_queue.append(nbr)
+        return d, visited_queue, visited
+
+    def reversed_bfs_for_s(self):
         d = [0 for i in range(self.n)]
         visited = [False for i in range(self.n)]
         visited_queue = deque()
@@ -80,7 +135,7 @@ class ResidualNetwork(object):
                         visited_queue.append(nbr)
         return d, visited_queue, visited
 
-    def reversed_copy_bfs_for_t(self):
+    def reversed_bfs_for_t(self):
         d = [0 for i in range(self.n)]
         visited = [False for i in range(self.n)]
         visited_queue = deque()
@@ -201,11 +256,75 @@ def max_flow(G, n, m):  # Алгоритм макс потока v0.02
             e[node] = capacity
             e[0] -= capacity
 
-    d, visited_queue, visited = Gf.reversed_copy_bfs_for_t()
+    d, visited_queue, visited = Gf.reversed_bfs_for_t()
     h[0] = n
-    for i in range(1, n):
-        if d[i] != 0:
-            h[i] = d[i]
+    for node in visited_queue:
+        h[node] = d[node]
+    while len(visited_queue) != 0:
+        queue.append(visited_queue.pop())
+    for i in range(1, n - 1):
+        if not visited[i]:
+            queue.append(i)
+    gr_counter = 0  # Счетчик для запуска bfs для global relabeling
+
+    while len(queue) != 0:  # Алгоритм проталкивания предпотока
+        cur = queue.popleft()
+        has_neighbour_with_h = False
+        while e[cur] != 0:
+            if gr_counter >= m:  # Если выполнили m операций relabel выполняем global relabeling
+                d, visited_queue_s, visited_s = Gf.direct_bfs_for_s()  # Разница здесь
+                for node in visited_queue_s:
+                    h[node] = h[0] + d[node]
+                d, visited_queue_t, visited_t = Gf.reversed_bfs_for_t()
+                for node in visited_queue_t:
+                    h[node] = d[node]
+                gr_counter = 0
+            neighbours = Gf.neighbours(cur)  # Переменные для сохранения соседа, у которого h(u) = h(v) + 1
+            has_neighbour_with_h = False
+            neighbour_with_h = 0
+            e_in_neighbour = 0
+            direction_to_neighbour = None
+            for node, dict in neighbours.items():  # Поиск такого соседа
+                for direction, flow in dict.items():
+                    if h[cur] == h[node] + 1 and flow != 0:
+                        has_neighbour_with_h = True
+                        neighbour_with_h = node
+                        e_in_neighbour = e[node]
+                        direction_to_neighbour = direction
+                        break
+            if has_neighbour_with_h:  # Если сосед найден, делаем push
+                push(Gf, e, cur, neighbour_with_h, direction_to_neighbour)
+                # gr_counter += 1
+                if e_in_neighbour == 0 and neighbour_with_h not in (0, n - 1):  # Добавляем соседва в очередь,
+                    queue.append(neighbour_with_h)  # если его избыток был равен 0
+            else:
+                break
+        if not has_neighbour_with_h and e[cur] != 0:  # Если текущая вершина, не имеет соседей с h(v) = h(u) - 1, тогда
+            relabel(Gf, h, cur, n)  # текущую вершину нужно поднять
+            queue.append(cur)  # Добавляем текущую вершину в конец очереди
+            gr_counter += 1
+    return Gf, e, h
+
+
+def max_flow_fast(G, n, m):  # Алгоритм макс потока v0.03
+    e = [0 for i in range(n)]  # Инициализация избытка, высоты и очереди
+    h = [0 for i in range(n)]
+    Gf = ResidualNetwork(G)
+    queue = deque()
+
+    neighbours = Gf.neighbours(0).keys()  # Проталкиваем поток по всем ребрам истока
+    for node in neighbours:
+        if Gf.has_edge(0, node, 'forward'):
+            capacity = Gf.get_capacity(0, node, 'forward')
+            Gf.update_flow(0, node, 'forward', capacity, False)
+            Gf.update_flow(node, 0, 'backward', capacity, True)
+            e[node] = capacity
+            e[0] -= capacity
+
+    d, visited_queue, visited = Gf.reversed_bfs_for_t()
+    h[0] = n
+    for node in visited_queue:
+        h[node] = d[node]
     while len(visited_queue) != 0:
         queue.append(visited_queue.pop())
     for i in range(1, n-1):
@@ -217,12 +336,12 @@ def max_flow(G, n, m):  # Алгоритм макс потока v0.02
         cur = queue.popleft()
         has_neighbour_with_h = False
         while e[cur] != 0:
-            if gr_counter >= n:  # Если выполнили m операций push\relabel выполняем global relabeling
-                d, visited_queue_s, visited_s = Gf.reversed_copy_bfs_for_s()
-                for node in visited_queue:
+            if gr_counter >= m:  # Если выполнили m операций relabel выполняем global relabeling
+                d, visited_queue_s, visited_s = Gf.direct_bfs_for_s_fast()  # Разница здесь
+                for node in visited_queue_s:
                     h[node] = h[0] + d[node]
-                d, visited_queue_t, visited_t = Gf.reversed_copy_bfs_for_t()
-                for node in visited_queue:
+                d, visited_queue_t, visited_t = Gf.reversed_bfs_for_t()
+                for node in visited_queue_t:
                     h[node] = d[node]
                 gr_counter = 0
             neighbours = Gf.neighbours(cur)  # Переменные для сохранения соседа, у которого h(u) = h(v) + 1
@@ -248,8 +367,8 @@ def max_flow(G, n, m):  # Алгоритм макс потока v0.02
         if not has_neighbour_with_h and e[cur] != 0:  # Если текущая вершина, не имеет соседей с h(v) = h(u) - 1, тогда
             relabel(Gf, h, cur, n)  # текущую вершину нужно поднять
             queue.append(cur)  # Добавляем текущую вершину в конец очереди
-            # gr_counter += 1
-    return Gf, e[n-1]
+            gr_counter += 1
+    return Gf, e, h
 
 
 def bfs(G, u, n):  # Поиск в ширину
@@ -279,12 +398,32 @@ def dfs(G, u, n):  # Поиск в глубину
     while len(stack) != 0:
         cur = stack.pop()
         for node, dict in G.neighbours(cur).items():
-            for info in dict.values():
-                if info.get('flow') != 0 and not visited[node]:
+            for flow in dict.values():
+                if flow != 0 and not visited[node]:
                     reachable.append(node)
                     visited[node] = True
                     stack.append(node)
-    return reachable
+    return reachable, visited
+
+
+def find_path(G, n, start, stop):
+    prev = [-1 for i in range(n)]
+    visited = [False for i in range(n)]
+    queue = deque()
+    queue.append(start)
+    cur = None
+    while len(queue) != 0 and cur != stop:
+        cur = queue.popleft()
+        for nbr in G.neighbours(cur).keys():
+            if not visited[nbr]:
+                queue.append(nbr)
+                visited[nbr] = True
+                prev[nbr] = cur
+    list = [stop]
+    while prev[stop] != -1 and prev[stop] != start:
+        list.append(prev[stop])
+        stop = prev[stop]
+    return list
 
 
 if __name__ == '__main__':
@@ -302,10 +441,9 @@ if __name__ == '__main__':
         G, n, m = parse_file(os.path.join(dir, file))
         print(file)
         t0 = time.time()
-        Gf, mf = max_flow(G, n, m)
+        Gf, e, h = max_flow(G, n, m)
         t1 = time.time()
         print('Time: {}'.format(t1-t0))
-        print('Max flow: {}'.format(mf))
-
+        print('Max flow: {}'.format(e[n-1]))
     # print(dfs(Gf, 0, n))
 
