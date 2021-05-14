@@ -29,6 +29,18 @@ class ResidualNetwork(object):
                 else:
                     self.flow[nbr].update({node: {'backward': 0}})
 
+    def add_edge(self, u, v, d, flow):
+        if self.flow[u].get(v) is None:
+            self.flow[u].update({v: {d: flow}})
+        else:
+            self.flow[u].get(v).update({d: flow})
+
+    def remove_edge(self, u, v, d):
+        if len(self.flow[u].get(v)) > 1:
+            self.flow[u].get(v).pop(d)
+        else:
+            self.flow[u].pop(v)
+
     def neighbours(self, u):
         return self.flow[u]
 
@@ -436,14 +448,14 @@ if __name__ == '__main__':
     # print(mf)
 
     dir = "MaxFlow-tests"
-    file = 'test_rd07.txt'
-    for file in os.listdir(dir):
-        G, n, m = parse_file(os.path.join(dir, file))
-        print(file)
-        t0 = time.time()
-        Gf, e, h = max_flow(G, n, m)
-        t1 = time.time()
-        print('Time: {}'.format(t1-t0))
-        print('Max flow: {}'.format(e[n-1]))
+    file = 'test_rd06.txt'
+    # for file in os.listdir(dir):
+    G, n, m = parse_file(os.path.join(dir, file))
+    print(file)
+    t0 = time.time()
+    Gf, e, h = max_flow(G, n, m)
+    t1 = time.time()
+    print('Time: {}'.format(t1-t0))
+    print('Max flow: {}'.format(e[n-1]))
     # print(dfs(Gf, 0, n))
 
