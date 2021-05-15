@@ -2,3 +2,4 @@
 *.png
 *.jpg
 /MaxFlow-tests/*
+test.py
