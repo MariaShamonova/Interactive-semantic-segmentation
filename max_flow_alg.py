@@ -1,7 +1,5 @@
 from networkx import DiGraph
 from collections import deque
-import os
-import time
 
 FILE = 'test2.txt'
 
@@ -74,7 +72,7 @@ class ResidualNetwork(object):
         for nbr, dict in self.neighbours(0).items():
             for direction, flow in dict.items():
                 capacity = self.get_capacity(0, nbr, direction)
-                if direction == 'forward' and flow != capacity and nbr != n-1:
+                if direction == 'forward' and flow != capacity and nbr != self.n-1:
                     d[nbr] = 1
                     visited[nbr] = True
                     queue.append(nbr)
@@ -84,7 +82,7 @@ class ResidualNetwork(object):
             for nbr, dict in self.neighbours(cur).items():
                 for direction, flow in dict.items():
                     capacity = self.get_capacity(cur, nbr, direction)
-                    if direction == 'forward' and flow != capacity and nbr != n-1 \
+                    if direction == 'forward' and flow != capacity and nbr != self.n-1 \
                             and not visited[nbr]:
                         d[nbr] = d[cur] + 1
                         visited[nbr] = True
@@ -99,7 +97,7 @@ class ResidualNetwork(object):
         queue = deque()
         visited[0] = True
         for nbr in self.s_nbrs:
-            if self.flow[nbr].get(0) is not None:
+            if self.flow[nbr].get(0) is not None and nbr != self.n-1:
                 d[nbr] = 1
                 visited[nbr] = True
                 queue.append(nbr)
@@ -109,7 +107,7 @@ class ResidualNetwork(object):
             for nbr, dict in self.neighbours(cur).items():
                 for direction, flow in dict.items():
                     capacity = self.get_capacity(cur, nbr, direction)
-                    if direction == 'forward' and flow != capacity and nbr != n-1 \
+                    if direction == 'forward' and flow != capacity and nbr != self.n-1 \
                             and not visited[nbr]:
                         d[nbr] = d[cur] + 1
                         visited[nbr] = True
@@ -126,7 +124,7 @@ class ResidualNetwork(object):
         for nbr, dict in self.neighbours(0).items():
             for direction, flow in dict.items():
                 capacity = self.get_capacity(0, nbr, direction)
-                if direction == 'backward' and flow != capacity and nbr != n-1:
+                if direction == 'backward' and flow != capacity and nbr != self.n-1:
                     d[nbr] = 1
                     visited[nbr] = True
                     queue.append(nbr)
@@ -136,7 +134,7 @@ class ResidualNetwork(object):
             for nbr, dict in self.neighbours(cur).items():
                 for direction, flow in dict.items():
                     capacity = self.get_capacity(cur, nbr, direction)
-                    if direction == 'backward' and flow != capacity and nbr != n-1 \
+                    if direction == 'backward' and flow != capacity and nbr != self.n-1 \
                             and not visited[nbr]:
                         d[nbr] = d[cur] + 1
                         visited[nbr] = True
@@ -155,8 +153,8 @@ class ResidualNetwork(object):
         visited = [False for i in range(self.n)]
         visited_queue = deque()
         queue = deque()
-        visited[n-1] = True
-        for nbr in graph[n-1].keys():
+        visited[self.n-1] = True
+        for nbr in graph[self.n-1].keys():
             if nbr != 0:
                 d[nbr] = 1
                 visited[nbr] = True
@@ -451,26 +449,3 @@ def find_path(G, n, start, stop):
         list.append(prev[stop])
         stop = prev[stop]
     return list
-
-
-if __name__ == '__main__':
-    # n = 10000
-    # m = (n-1)**2 - 1
-    # G = generate_max_graph(n)
-    # print(G.size())
-    # G, n, m = parse_file()
-    # Gf, mf = max_flow(G, n, m)
-    # print(mf)
-
-    dir = "MaxFlow-tests"
-    file = 'test_rd06.txt'
-    # for file in os.listdir(dir):
-    G, n, m = parse_file(os.path.join(dir, file))
-    print(file)
-    t0 = time.time()
-    Gf, e, h = max_flow(G, n, m)
-    t1 = time.time()
-    print('Time: {}'.format(t1-t0))
-    print('Max flow: {}'.format(e[n-1]))
-    # print(dfs(Gf, 0, n))
-
