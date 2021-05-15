@@ -15,7 +15,6 @@ class ResidualNetwork(object):
             self.flow.append({})
         for node, nbrsdict in Gc.adjacency():
             for nbr, dict in nbrsdict.items():
-                #if node != n-1:
                 capacity = dict.get('capacity')
                 self.capacity[node].update({nbr: capacity})
                 if self.flow[node].get(nbr):
@@ -63,34 +62,38 @@ class ResidualNetwork(object):
     def has_edge(self, u, v, d):
         return True if self.flow[u].get(v) and self.flow[u].get(v).get(d) else False
 
-    def direct_bfs_for_s_fast(self):
+    def direct_bfs_for_s_fast(self):  # Используетс в fast
+        graph = [{} for i in range(self.n)]
+        for node in range(self.n):
+            for nbr, dict in self.neighbours(node).items():
+                for direction, flow in dict.items():
+                    capacity = self.get_capacity(node, nbr, direction)
+                    # if direction == 'forward' and nbr != 0:
+                    #     graph[node].update({nbr: 0})
+                    if direction == 'backward' and nbr != 0:
+                        graph[nbr].update({node: 0})
         d = [0 for i in range(self.n)]
         visited = [False for i in range(self.n)]
         visited_queue = deque()
         queue = deque()
-        visited[0] = True
-        for nbr, dict in self.neighbours(0).items():
-            for direction, flow in dict.items():
-                capacity = self.get_capacity(0, nbr, direction)
-                if direction == 'forward' and flow != capacity and nbr != self.n-1:
-                    d[nbr] = 1
+        visited[self.n-1] = True
+        for nbr in graph[self.n-1].keys():
+            if nbr != 0:
+                d[nbr] = 1
+                visited[nbr] = True
+                queue.append(nbr)
+                visited_queue.append(nbr)
+        while len(queue) != 0:
+            cur = queue.popleft()
+            for nbr in graph[cur].keys():
+                if not visited[nbr] and nbr != 0:
+                    d[nbr] = d[cur] + 1
                     visited[nbr] = True
                     queue.append(nbr)
                     visited_queue.append(nbr)
-        while len(queue) != 0:
-            cur = queue.popleft()
-            for nbr, dict in self.neighbours(cur).items():
-                for direction, flow in dict.items():
-                    capacity = self.get_capacity(cur, nbr, direction)
-                    if direction == 'forward' and flow != capacity and nbr != self.n-1 \
-                            and not visited[nbr]:
-                        d[nbr] = d[cur] + 1
-                        visited[nbr] = True
-                        queue.append(nbr)
-                        visited_queue.append(nbr)
         return d, visited_queue, visited
 
-    def direct_bfs_for_s(self):
+    def direct_bfs_for_s(self):  # Используется
         d = [0 for i in range(self.n)]
         visited = [False for i in range(self.n)]
         visited_queue = deque()
@@ -106,8 +109,8 @@ class ResidualNetwork(object):
             cur = queue.popleft()
             for nbr, dict in self.neighbours(cur).items():
                 for direction, flow in dict.items():
-                    capacity = self.get_capacity(cur, nbr, direction)
-                    if direction == 'forward' and flow != capacity and nbr != self.n-1 \
+                    # capacity = self.get_capacity(cur, nbr, direction)
+                    if direction == 'forward' and nbr != self.n-1 \
                             and not visited[nbr]:
                         d[nbr] = d[cur] + 1
                         visited[nbr] = True
@@ -115,7 +118,7 @@ class ResidualNetwork(object):
                         visited_queue.append(nbr)
         return d, visited_queue, visited
 
-    def reversed_bfs_for_s(self):
+    def reversed_bfs_for_s(self):  # Не используется
         d = [0 for i in range(self.n)]
         visited = [False for i in range(self.n)]
         visited_queue = deque()
@@ -188,12 +191,6 @@ class ResidualNetwork(object):
         #                 queue.append(nbr)
         #                 visited_queue.append(nbr)
         return d, visited_queue, visited
-
-    # def add_edge(self, u, v, **kwargs):
-    #     self.G.add_edge(u, v, **kwargs)
-    #
-    # def remove_edge(self, u, v):
-    #     self.G.remove_edge(u, v)
 
 
 def generate_max_graph(n):
@@ -311,7 +308,7 @@ def max_flow(G, n, m):  # Алгоритм макс потока v0.02
             direction_to_neighbour = None
             for node, dict in neighbours.items():  # Поиск такого соседа
                 for direction, flow in dict.items():
-                    if h[cur] == h[node] + 1 and flow != 0:
+                    if h[cur] == h[node] + 1:
                         has_neighbour_with_h = True
                         neighbour_with_h = node
                         e_in_neighbour = e[node]
@@ -337,14 +334,15 @@ def max_flow_fast(G, n, m):  # Алгоритм макс потока v0.03
     Gf = ResidualNetwork(G)
     queue = deque()
 
-    neighbours = Gf.neighbours(0).keys()  # Проталкиваем поток по всем ребрам истока
+    neighbours = list(Gf.neighbours(0).keys())  # Проталкиваем поток по всем ребрам истока
     for node in neighbours:
         if Gf.has_edge(0, node, 'forward'):
             capacity = Gf.get_capacity(0, node, 'forward')
-            Gf.update_flow(0, node, 'forward', capacity, False)
-            Gf.update_flow(node, 0, 'backward', capacity, True)
+            Gf.add_edge(node, 0, 'backward', capacity)
             e[node] = capacity
             e[0] -= capacity
+    for node in neighbours:
+        Gf.remove_edge(0, node, 'forward')
 
     d, visited_queue, visited = Gf.reversed_bfs_for_t()
     h[0] = n
@@ -357,40 +355,68 @@ def max_flow_fast(G, n, m):  # Алгоритм макс потока v0.03
             queue.append(i)
     gr_counter = 0  # Счетчик для запуска bfs для global relabeling
 
+    was_relabled = [False for i in range(n)]
+
     while len(queue) != 0:  # Алгоритм проталкивания предпотока
         cur = queue.popleft()
         has_neighbour_with_h = False
+        neighbours = Gf.neighbours(cur)  # Переменные для сохранения соседа, у которого h(u) = h(v) + 1
+        queue_f = deque()
+        queue_b = deque()
+        for node, dict in neighbours.items():
+            for direction, flow in dict.items():
+                if flow != 0:
+                    if direction == 'forward':
+                        queue_f.append((node, direction))
+                    else:
+                        queue_b.append((node, direction))
+        nbrs_queue = deque()
+        while len(queue_f) != 0:
+            nbrs_queue.append(queue_f.popleft())
+        while len(queue_b) != 0:
+            nbrs_queue.append(queue_b.popleft())
         while e[cur] != 0:
             if gr_counter >= m:  # Если выполнили m операций relabel выполняем global relabeling
                 d, visited_queue_s, visited_s = Gf.direct_bfs_for_s_fast()  # Разница здесь
                 for node in visited_queue_s:
-                    h[node] = h[0] + d[node]
+                    if not was_relabled[node]:
+                        h[node] = h[0] + d[node]
                 d, visited_queue_t, visited_t = Gf.reversed_bfs_for_t()
                 for node in visited_queue_t:
                     h[node] = d[node]
+                was_relabled = [False for i in range(n)]
                 gr_counter = 0
-            neighbours = Gf.neighbours(cur)  # Переменные для сохранения соседа, у которого h(u) = h(v) + 1
             has_neighbour_with_h = False
             neighbour_with_h = 0
             e_in_neighbour = 0
             direction_to_neighbour = None
-            for node, dict in neighbours.items():  # Поиск такого соседа
-                for direction, flow in dict.items():
-                    if h[cur] == h[node] + 1 and flow != 0:
-                        has_neighbour_with_h = True
-                        neighbour_with_h = node
-                        e_in_neighbour = e[node]
-                        direction_to_neighbour = direction
-                        break
+            while len(nbrs_queue) != 0:
+                nbr, direction = nbrs_queue.popleft()
+                if h[cur] == h[nbr] + 1:
+                    has_neighbour_with_h = True
+                    neighbour_with_h = nbr
+                    e_in_neighbour = e[nbr]
+                    direction_to_neighbour = direction
+                    break
+            # for node, dict in neighbours.items():  # Поиск такого соседа
+            #     for direction, flow in dict.items():
+            #         if h[cur] == h[node] + 1 and flow != 0:
+            #             has_neighbour_with_h = True
+            #             neighbour_with_h = node
+            #             e_in_neighbour = e[node]
+            #             direction_to_neighbour = direction
+            #             break
             if has_neighbour_with_h:  # Если сосед найден, делаем push
                 push(Gf, e, cur, neighbour_with_h, direction_to_neighbour)
                 # gr_counter += 1
+                was_relabled[cur] = False
                 if e_in_neighbour == 0 and neighbour_with_h not in (0, n-1):  # Добавляем соседва в очередь,
                     queue.append(neighbour_with_h)  # если его избыток был равен 0
             else:
                 break
         if not has_neighbour_with_h and e[cur] != 0:  # Если текущая вершина, не имеет соседей с h(v) = h(u) - 1, тогда
             relabel(Gf, h, cur, n)  # текущую вершину нужно поднять
+            was_relabled[cur] = True
             queue.append(cur)  # Добавляем текущую вершину в конец очереди
             gr_counter += 1
     return Gf, e, h
