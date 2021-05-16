@@ -308,4 +308,28 @@ if __name__ == '__main__':
         print('Max flow: {}'.format(mf))
 
     # print(dfs(Gf, 0, n))
+    
+    #Сегментация изображения
+    
+    img = Image.open('image.jpg')
+    arr = np.asarray(img, dtype='uint8')
+    
+ 
+    from PIL import Image, ImageOps
+    
+    gray_image = ImageOps.grayscale(img)
+  
+    arr_gray = np.asarray(gray_image, dtype='uint8')
+    arr_rgb = np.asarray(arr, dtype='uint8')
+   
+    
+    rows = len(arr)
+    columns = len(arr[0])
+    
+    graph, seededImage = buildGraph(arr_gray, arr_rgb, rows, columns)
+   
+    
+    G = graph
+    m = graph.number_of_edges() 
+    n = graph.number_of_nodes()
 
