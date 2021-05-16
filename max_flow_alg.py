@@ -5,6 +5,9 @@ import time
 
 import numpy as np
 from math import exp, pow
+import networkx as nx
+import cv2
+import os
 
 FILE = 'test2.txt'
 
@@ -290,14 +293,13 @@ def dfs(G, u, n):  # Поиск в глубину
     return reachable
 
 SIGMA = 30
-OBJCOLOR, BKGCOLOR = (12, 94, 56), (255,255,255)
+OBJCOLOR, BKGCOLOR = (152, 94, 56), (255,255,255)
 OBJ, BKG = "OBJ", "BKG"
 OBJCODE, BKGCODE = 1, 2
 
 SOURCE, SINK = -2, -1
 SF = 10
-
-import cv2
+CUTCOLOR = (0, 0, 255)
 
 def plantSeed(image, r, c):
 
@@ -390,8 +392,6 @@ def makeNLinks(graph, image, r, c):
 
 
 def makeTLinks(graph, seeds, K, r, c):
-  
-    
     
     for i in range(r):
         for j in range(c):
@@ -421,10 +421,6 @@ def buildGraph(image, image_rgb, rows, columns):
     makeTLinks(graph, seeds, K,  rows, columns)
     
     return graph, seededImage
-     
-import os
-
-CUTCOLOR = (0, 0, 255)
 
 def displayCut(image, cuts):
     def colorPixel(i, j):
@@ -437,6 +433,7 @@ def displayCut(image, cuts):
             colorPixel(c[0] // r, c[0] % r)
             colorPixel(c[1] // r, c[1] % r)
     return image
+
 if __name__ == '__main__':
     # n = 10000
     # m = (n-1)**2 - 1
