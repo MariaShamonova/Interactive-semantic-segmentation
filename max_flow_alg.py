@@ -286,7 +286,154 @@ def dfs(G, u, n):  # Поиск в глубину
                     stack.append(node)
     return reachable
 
+SIGMA = 30
+OBJCOLOR, BKGCOLOR = (12, 94, 56), (255,255,255)
+OBJ, BKG = "OBJ", "BKG"
+OBJCODE, BKGCODE = 1, 2
 
+SOURCE, SINK = -2, -1
+SF = 10
+
+import cv2
+
+def plantSeed(image, r, c):
+
+    def drawLines(x, y, pixelType):
+        if pixelType == OBJ:
+            color, code = OBJCOLOR, OBJCODE
+            seeds[x][y] = OBJCODE
+        else:
+            color, code = BKGCOLOR, BKGCODE
+            seeds[x][y] = BKGCODE
+        cv2.circle(image, (x, y), radius, color, thickness)
+        cv2.circle(seeds, (x // SF, y // SF), radius // SF, code, thickness)
+
+    def onMouse(event, x, y, flags, pixelType):
+        global drawing
+        if event == cv2.EVENT_LBUTTONDOWN:
+            drawing = True
+            drawLines(x, y, pixelType)
+        elif event == cv2.EVENT_MOUSEMOVE and drawing:
+            drawLines(x, y, pixelType)
+        elif event == cv2.EVENT_LBUTTONUP:
+            drawing = False
+
+    def paintSeeds(pixelType):
+        print("Planting", pixelType, "seeds")
+        global drawing
+        drawing = False
+        windowname = "Plant " + pixelType + " seeds"
+        cv2.namedWindow(windowname, cv2.WINDOW_AUTOSIZE)
+        cv2.setMouseCallback(windowname, onMouse, pixelType)
+        while (1):
+            cv2.imshow(windowname, image)
+            if cv2.waitKey(1) & 0xFF == 27:
+                break
+        cv2.destroyAllWindows()
+    
+    seeds = np.zeros((r, c), dtype="uint8")
+    image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+
+    radius = 10
+    thickness = -1 # fill the whole circle
+    global drawing
+    drawing = False
+    
+    paintSeeds(OBJ)
+    paintSeeds(BKG)
+    
+    return seeds, image
+
+
+def boundaryPenalty(ip, iq):
+    bp = 100 * exp(- pow(int(ip) - int(iq), 2) / (2 * pow(SIGMA, 2)))
+    return bp
+
+def makeNLinks(graph, image, r, c):
+    K = -float("inf")
+    count = 0
+    for i in range(r):
+        for j in range(c):
+            graph.add_node(i * c + j)
+            count = count + 1
+            x = i * c + j
+            if i + 1 < r: # Нижний пиксель
+                y = (i + 1) * c + j
+                bp = boundaryPenalty(image[i][j], image[i + 1][j])
+                graph.add_edge(x, y, capacity=bp)
+                graph.add_edge(y, x, capacity=bp)
+                K = max(K, bp)
+               
+            if i + 1 < r: # Верхний пиксель
+                y = (i - 1) * c + j
+                bp = boundaryPenalty(image[i][j], image[i - 1][j])
+                graph.add_edge(x, y, capacity=bp)
+                graph.add_edge(y, x, capacity=bp)
+                K = max(K, bp)
+            if j + 1 < c: # Пиксель справа
+                y = i * c + j + 1
+                bp = boundaryPenalty(image[i][j], image[i][j + 1])
+                graph.add_edge(x, y, capacity=bp)
+                graph.add_edge(y, x, capacity=bp)
+                K = max(K, bp)
+            if j + 1 < c: # Пиксель слева
+                y = i * c + j - 1
+                bp = boundaryPenalty(image[i][j], image[i][j - 1])
+                graph.add_edge(x, y,capacity= bp)
+                graph.add_edge(y, x,capacity= bp)
+                K = max(K, bp)
+    print(count)
+    return K
+
+
+def makeTLinks(graph, seeds, K, r, c):
+  
+    
+    
+    for i in range(r):
+        for j in range(c):
+            x = i * c + j
+            if seeds[i][j] == OBJCODE:
+                graph.add_edge(SOURCE,x, capacity=K)
+            elif seeds[i][j] == BKGCODE:
+                graph.add_edge(x,SINK, capacity=K)
+                
+    return graph
+                
+                
+def buildGraph(image, image_rgb, rows, columns):
+  
+    graph = nx.DiGraph()
+    
+    #Добавляем исток и сток
+    graph.add_node(0)
+    graph.add_node(rows*columns+2)
+    
+    #n-links - список соседних ребер между пикселями
+    K = makeNLinks(graph, image,  rows, columns)
+    
+    seeds, seededImage = plantSeed(image, rows, columns)
+    
+    #n-links -Добавление вершин между вершинами и  стоком, стоком
+    makeTLinks(graph, seeds, K,  rows, columns)
+    
+    return graph, seededImage
+     
+import os
+
+CUTCOLOR = (0, 0, 255)
+
+def displayCut(image, cuts):
+    def colorPixel(i, j):
+        image[i][j] = CUTCOLOR
+
+    r, c = image.shape
+    image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+    for c in cuts:
+        if c[0] != SOURCE and c[0] != SINK and c[1] != SOURCE and c[1] != SINK:
+            colorPixel(c[0] // r, c[0] % r)
+            colorPixel(c[1] // r, c[1] % r)
+    return image
 if __name__ == '__main__':
     # n = 10000
     # m = (n-1)**2 - 1
