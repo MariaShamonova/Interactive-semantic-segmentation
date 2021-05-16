@@ -7,7 +7,7 @@ import numpy as np
 from math import exp, pow
 import networkx as nx
 import cv2
-import os
+from PIL import Image, ImageOps
 
 FILE = 'test2.txt'
 
@@ -443,16 +443,16 @@ if __name__ == '__main__':
     # Gf, mf = max_flow(G, n, m)
     # print(mf)
 
-    dir = "MaxFlow-tests"
-    file = 'test_rd07.txt'
-    for file in os.listdir(dir):
-        G, n, m = parse_file(os.path.join(dir, file))
-        print(file)
-        t0 = time.time()
-        Gf, mf = max_flow(G, n, m)
-        t1 = time.time()
-        print('Time: {}'.format(t1-t0))
-        print('Max flow: {}'.format(mf))
+    #dir = "MaxFlow-tests"
+    #file = 'test_rd07.txt'
+    #for file in os.listdir(dir):
+    #    G, n, m = parse_file(os.path.join(dir, file))
+    #    print(file)
+    #    t0 = time.time()
+    #    Gf, mf = max_flow(G, n, m)
+    #    t1 = time.time()
+    #    print('Time: {}'.format(t1-t0))
+    #    print('Max flow: {}'.format(mf))
 
     # print(dfs(Gf, 0, n))
     
@@ -462,10 +462,9 @@ if __name__ == '__main__':
     arr = np.asarray(img, dtype='uint8')
     
  
-    from PIL import Image, ImageOps
+    
     
     gray_image = ImageOps.grayscale(img)
-  
     arr_gray = np.asarray(gray_image, dtype='uint8')
     arr_rgb = np.asarray(arr, dtype='uint8')
    
@@ -475,8 +474,13 @@ if __name__ == '__main__':
     
     graph, seededImage = buildGraph(arr_gray, arr_rgb, rows, columns)
    
-    
     G = graph
     m = graph.number_of_edges() 
     n = graph.number_of_nodes()
-
+    print(m)
+    print(n)
+    t0 = time.time()
+    Gf, mf = max_flow(G, n, m)
+    t1 = time.time()
+    print('Time: {}'.format(t1-t0))
+    print('Max flow: {}'.format(mf))
