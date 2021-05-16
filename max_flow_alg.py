@@ -3,6 +3,9 @@ from collections import deque
 import os
 import time
 
+import numpy as np
+from math import exp, pow
+
 FILE = 'test2.txt'
 
 
