@@ -617,22 +617,31 @@ def buildGraph(image, image_rgb, rows, columns):
     
     return graph, seededImage
 
-def displayCut(image, cuts):
+def displayCut(image, cuts, r, c):
     def colorPixel(i, j):
         image[i][j] = CUTCOLOR
-
-    r, c = image.shape
+   
     image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+    
     for c in cuts:
-        if c[0] != SOURCE and c[0] != SINK and c[1] != SOURCE and c[1] != SINK:
+        print(c[0], c[1])
+        if c[0] == True and c[1] == False:
             colorPixel(c[0] // r, c[0] % r)
             colorPixel(c[1] // r, c[1] % r)
     return image
 
+def show_image(image):
+    windowname = "Segmentation"
+    cv2.namedWindow(windowname, cv2.WINDOW_NORMAL)
+    cv2.startWindowThread()
+    cv2.imshow(windowname, image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
 if __name__ == '__main__':
-    print('Hello')
+   
     img = Image.open('image.jpg')
+    image_1 = cv2.imread('image.jpg', cv2.IMREAD_GRAYSCALE)
     arr = np.asarray(img, dtype='uint8')
     
     gray_image = ImageOps.grayscale(img)
@@ -647,6 +656,18 @@ if __name__ == '__main__':
     G = graph
     m = graph.number_of_edges() 
     n = graph.number_of_nodes()
-    print(m)
-    print(n)
+    
+    Gf, mf, h = max_flow(G, n, m)
+    print(Gf)
+    #r,v = dfs(Gf, 0 ,len(Gf))
+   
+    #print(len(cuts))
+    #print(cuts[0])
+    #im = displayCut(image_1, cuts, rows, columns)
+   
+    ###pathname = os.path.splitext('image.jpg')[0]
+    #savename = pathname + "cut.jpg"
+    #cv2.imwrite(savename, im)
+    #print("Saved image as", savename)
+    
    
