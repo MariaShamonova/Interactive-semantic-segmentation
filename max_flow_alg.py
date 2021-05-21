@@ -37,6 +37,9 @@ class ResidualNetwork(object):
         else:
             self.flow[u].pop(v)
 
+    def number_of_nodes(self):
+        return self.n
+
     def neighbours(self, u):
         return self.flow[u]
 
