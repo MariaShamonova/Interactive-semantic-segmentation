@@ -20,7 +20,7 @@ OBJCOLOR, BKGCOLOR = (152, 94, 56), (255,255,255)
 OBJ, BKG = "OBJ", "BKG"
 OBJCODE, BKGCODE = 1, 2
 
-SOURCE, SINK = -2, -1
+
 SF = 10
 CUTCOLOR = (0, 0, 255)
 
@@ -45,6 +45,9 @@ class ResidualNetwork(object):
         for nbr in self.neighbours(0):
             self.s_nbrs.append(nbr)
 
+    def number_of_nodes(self):
+        return self.n
+    
     def add_edge(self, u, v, d, flow):
         if self.flow[u].get(v) is None:
             self.flow[u].update({v: {d: flow}})
@@ -57,6 +60,12 @@ class ResidualNetwork(object):
         else:
             self.flow[u].pop(v)
 
+    def dfs_1(self, graph,s,visited):
+        visited[s]=True
+        for i in range(len(graph)):
+            if graph[s][i]>0 and not visited[i]:
+                self.dfs(graph,i,visited)
+  
     def neighbours(self, u):
         return self.flow[u]
 
@@ -467,16 +476,23 @@ def dfs(G, u, n):  # Поиск в глубину
     stack = deque()
     stack.append(u)
     visited[u] = True
+    count = 0
     while len(stack) != 0:
         cur = stack.pop()
         for node, dict in G.neighbours(cur).items():
             for flow in dict.values():
                 if flow != 0 and not visited[node]:
+                    count += 1
                     reachable.append(node)
                     visited[node] = True
                     stack.append(node)
-    return reachable, visited
+    return reachable, visited, count
 
+#def dfs_1(rGraph, s, visited):
+    #visited[s]=True
+    #for i in range(rGraph.number_of_nodes()):
+        #if rGraph.get_capacity(s, i, 'forward') != None and rGraph.get_capacity(s, i, 'forward')>0 and not visited[i]:
+            #dfs_1(rGraph,i,visited)
 
 def find_path(G, n, start, stop):
     prev = [-1 for i in range(n)]
@@ -598,14 +614,21 @@ def makeTLinks(graph, seeds, K, r, c):
                 
     return graph
                 
+      
+
                 
-def buildGraph(image, image_rgb, rows, columns):
+def buildGraph(image, image_rgb, r, c):
   
     graph = nx.DiGraph()
     
     #Добавляем исток и сток
     graph.add_node(0)
     graph.add_node(rows*columns+2)
+    
+    global SOURCE 
+    SOURCE = 0
+    global SINK
+    SINK = rows*columns+2
     
     #n-links - список соседних ребер между пикселями
     K = makeNLinks(graph, image,  rows, columns)
@@ -620,12 +643,11 @@ def buildGraph(image, image_rgb, rows, columns):
 def displayCut(image, cuts, r, c):
     def colorPixel(i, j):
         image[i][j] = CUTCOLOR
-   
+
     image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-    
     for c in cuts:
-        print(c[0], c[1])
-        if c[0] == True and c[1] == False:
+        print(c)
+        if c[0] != SOURCE and c[0] != SINK and c[1] != SOURCE and c[1] != SINK:
             colorPixel(c[0] // r, c[0] % r)
             colorPixel(c[1] // r, c[1] % r)
     return image
@@ -638,6 +660,15 @@ def show_image(image):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
+
+def dfs_1(rGraph, V, s, visited):
+    stack = [s]
+    while stack:
+        v = stack.pop()
+        if not visited[v]:
+            visited[v] = True
+            stack.extend([u for u in range(V) if rGraph[v][u]])
+            
 if __name__ == '__main__':
    
     img = Image.open('image.jpg')
@@ -658,13 +689,19 @@ if __name__ == '__main__':
     n = graph.number_of_nodes()
     
     Gf, mf, h = max_flow(G, n, m)
-    print(Gf)
-    #r,v = dfs(Gf, 0 ,len(Gf))
+
    
-    #print(len(cuts))
-    #print(cuts[0])
-    #im = displayCut(image_1, cuts, rows, columns)
+    
+    r, visited, count = dfs(G, 0, G.number_of_nodes())
+    #visited = np.zeros(Gf.number_of_nodes(), dtype=bool)
+    #dfs_1(Gf, Gf.number_of_nodes(), SOURCE, visited)
+    print(count)
+    
    
+   
+   
+    #im = displayCut(image_1, v, rows, columns)
+    
     ###pathname = os.path.splitext('image.jpg')[0]
     #savename = pathname + "cut.jpg"
     #cv2.imwrite(savename, im)
