@@ -36,7 +36,12 @@ class ResidualNetwork(object):
         for node, nbrsdict in Gc.adjacency():
             for nbr, dict in nbrsdict.items():
                 capacity = dict.get('capacity')
-                self.capacity[node].update({nbr: capacity})
+                try:
+                   self.capacity[node].update({nbr: capacity})
+                except:
+                  print("cap-")
+                  print(self.n)
+                  print(node)
                 if self.flow[node].get(nbr):
                     self.flow[node][nbr].update({'forward': capacity})
                 else:
@@ -180,7 +185,11 @@ class ResidualNetwork(object):
             for nbr, dict in self.neighbours(node).items():
                 for direction, flow in dict.items():
                     if direction == 'forward' and nbr != 0:
-                        graph[nbr].update({node: 0})
+                        try:
+                          graph[nbr].update({node: 0})
+                        except:                      
+                          print(node)
+                        
         d = [0 for i in range(self.n)]
         visited = [False for i in range(self.n)]
         visited_queue = deque()
@@ -470,6 +479,7 @@ def bfs(G, u, n):  # Поиск в ширину
     return d, visited_queue, visited
 
 
+
 def dfs(G, u, n):  # Поиск в глубину
     visited = [False for i in range(n)]
     reachable = [u]
@@ -488,11 +498,6 @@ def dfs(G, u, n):  # Поиск в глубину
                     stack.append(node)
     return reachable, visited, count
 
-#def dfs_1(rGraph, s, visited):
-    #visited[s]=True
-    #for i in range(rGraph.number_of_nodes()):
-        #if rGraph.get_capacity(s, i, 'forward') != None and rGraph.get_capacity(s, i, 'forward')>0 and not visited[i]:
-            #dfs_1(rGraph,i,visited)
 
 def find_path(G, n, start, stop):
     prev = [-1 for i in range(n)]
@@ -568,33 +573,34 @@ def boundaryPenalty(ip, iq):
 def makeNLinks(graph, image, r, c):
     K = -float("inf")
     count = 0
-    for i in range(r):
-        for j in range(c):
-            graph.add_node(i * c + j)
+    for i in range(1, r + 1):
+        for j in range(1, c  + 1):
+            graph.add_node((i - 1) * c + j)
             count = count + 1
-            x = i * c + j
-            if i + 1 < r: # Нижний пиксель
-                y = (i + 1) * c + j
-                bp = boundaryPenalty(image[i][j], image[i + 1][j])
+         
+            x = (i - 1) * c + j
+            if i < r: # Нижний пиксель
+                y = i * c + j
+                bp = boundaryPenalty(image[i - 2][j - 1], image[i - 1][j - 1])
                 graph.add_edge(x, y, capacity=bp)
                 graph.add_edge(y, x, capacity=bp)
                 K = max(K, bp)
                
-            if i + 1 < r: # Верхний пиксель
-                y = (i - 1) * c + j
-                bp = boundaryPenalty(image[i][j], image[i - 1][j])
+            if i - 2 > 0: # Верхний пиксель
+                y = (i - 2) * c + j
+                bp = boundaryPenalty(image[i - 2][j - 1], image[i - 3][j - 1])
                 graph.add_edge(x, y, capacity=bp)
                 graph.add_edge(y, x, capacity=bp)
                 K = max(K, bp)
             if j + 1 < c: # Пиксель справа
-                y = i * c + j + 1
-                bp = boundaryPenalty(image[i][j], image[i][j + 1])
+                y = (i - 1)  * c + j + 1
+                bp = boundaryPenalty(image[i - 2][j - 1], image[i - 2][j ])
                 graph.add_edge(x, y, capacity=bp)
                 graph.add_edge(y, x, capacity=bp)
                 K = max(K, bp)
-            if j + 1 < c: # Пиксель слева
-                y = i * c + j - 1
-                bp = boundaryPenalty(image[i][j], image[i][j - 1])
+            if j - 1 > 0: # Пиксель слева
+                y = (i - 1) * c + j - 1
+                bp = boundaryPenalty(image[i - 2][j - 1], image[i - 2][j - 2])
                 graph.add_edge(x, y,capacity= bp)
                 graph.add_edge(y, x,capacity= bp)
                 K = max(K, bp)
@@ -611,11 +617,8 @@ def makeTLinks(graph, seeds, K, r, c):
                 graph.add_edge(SOURCE,x, capacity=K)
             elif seeds[i][j] == BKGCODE:
                 graph.add_edge(x,SINK, capacity=K)
-                
+       
     return graph
-                
-      
-
                 
 def buildGraph(image, image_rgb, r, c):
   
@@ -629,6 +632,8 @@ def buildGraph(image, image_rgb, r, c):
     SOURCE = 0
     global SINK
     SINK = rows*columns+2
+    print("SINK: ")
+    print(SINK)
     
     #n-links - список соседних ребер между пикселями
     K = makeNLinks(graph, image,  rows, columns)
@@ -661,14 +666,6 @@ def show_image(image):
     cv2.destroyAllWindows()
 
 
-def dfs_1(rGraph, V, s, visited):
-    stack = [s]
-    while stack:
-        v = stack.pop()
-        if not visited[v]:
-            visited[v] = True
-            stack.extend([u for u in range(V) if rGraph[v][u]])
-            
 if __name__ == '__main__':
    
     img = Image.open('image.jpg')
@@ -683,19 +680,34 @@ if __name__ == '__main__':
     columns = len(arr[0])
     
     graph, seededImage = buildGraph(arr_gray, arr_rgb, rows, columns)
-   
+
+    sorted(graph.nodes())
+
+    
+    print("count nodes of graph: ")
+    print(graph.number_of_nodes())
+    
     G = graph
     m = graph.number_of_edges() 
     n = graph.number_of_nodes()
     
     Gf, mf, h = max_flow(G, n, m)
 
-   
+    print("SINK: ")
+    print(SINK)
+    print("SOURCE: ")
+    print(SOURCE)
     
-    r, visited, count = dfs(G, 0, G.number_of_nodes())
+    r, visited, count = dfs(Gf, SOURCE, Gf.number_of_nodes())
     #visited = np.zeros(Gf.number_of_nodes(), dtype=bool)
     #dfs_1(Gf, Gf.number_of_nodes(), SOURCE, visited)
+    print("count: ")
     print(count)
+    print("count vertex: ")
+    print(Gf.number_of_nodes())
+    print("residual graph: ")
+    print(Gf.flow())
+
     
    
    
