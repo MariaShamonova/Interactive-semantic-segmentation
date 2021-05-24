@@ -1,13 +1,5 @@
 from networkx import DiGraph
 from collections import deque
-import os
-import time
-
-import numpy as np
-from math import exp, pow
-import networkx as nx
-import cv2
-from PIL import Image, ImageOps
 
 FILE = 'test2.txt'
 
@@ -29,10 +21,24 @@ class ResidualNetwork(object):
                     self.flow[node][nbr].update({'forward': capacity})
                 else:
                     self.flow[node].update({nbr: {'forward': capacity}})
-                if self.flow[nbr].get(node):
-                    self.flow[nbr][node].update({'backward': 0})
-                else:
-                    self.flow[nbr].update({node: {'backward': 0}})
+        self.s_nbrs = []
+        for nbr in self.neighbours(0):
+            self.s_nbrs.append(nbr)
+
+    def add_edge(self, u, v, d, flow):
+        if self.flow[u].get(v) is None:
+            self.flow[u].update({v: {d: flow}})
+        else:
+            self.flow[u].get(v).update({d: flow})
+
+    def remove_edge(self, u, v, d):
+        if len(self.flow[u].get(v)) > 1:
+            self.flow[u].get(v).pop(d)
+        else:
+            self.flow[u].pop(v)
+
+    def number_of_nodes(self):
+        return self.n
 
     def neighbours(self, u):
         return self.flow[u]
@@ -57,9 +63,65 @@ class ResidualNetwork(object):
             self.flow[u].get(v).update({d: flow - delta})
 
     def has_edge(self, u, v, d):
-        return True if self.flow[u].get(v).get(d) else False
+        return True if self.flow[u].get(v) and self.flow[u].get(v).get(d) else False
 
-    def reversed_copy_bfs_for_s(self):
+    def direct_bfs_for_s_fast(self):  # Используетс в fast
+        graph = [{} for i in range(self.n)]
+        for node in range(self.n):
+            for nbr, dict in self.neighbours(node).items():
+                for direction, flow in dict.items():
+                    capacity = self.get_capacity(node, nbr, direction)
+                    # if direction == 'forward' and nbr != 0:
+                    #     graph[node].update({nbr: 0})
+                    if direction == 'backward' and nbr != 0:
+                        graph[nbr].update({node: 0})
+        d = [0 for i in range(self.n)]
+        visited = [False for i in range(self.n)]
+        visited_queue = deque()
+        queue = deque()
+        visited[self.n-1] = True
+        for nbr in graph[self.n-1].keys():
+            if nbr != 0:
+                d[nbr] = 1
+                visited[nbr] = True
+                queue.append(nbr)
+                visited_queue.append(nbr)
+        while len(queue) != 0:
+            cur = queue.popleft()
+            for nbr in graph[cur].keys():
+                if not visited[nbr] and nbr != 0:
+                    d[nbr] = d[cur] + 1
+                    visited[nbr] = True
+                    queue.append(nbr)
+                    visited_queue.append(nbr)
+        return d, visited_queue, visited
+
+    def direct_bfs_for_s(self):  # Используется
+        d = [0 for i in range(self.n)]
+        visited = [False for i in range(self.n)]
+        visited_queue = deque()
+        queue = deque()
+        visited[0] = True
+        for nbr in self.s_nbrs:
+            if self.flow[nbr].get(0) is not None and nbr != self.n-1:
+                d[nbr] = 1
+                visited[nbr] = True
+                queue.append(nbr)
+                visited_queue.append(nbr)
+        while len(queue) != 0:
+            cur = queue.popleft()
+            for nbr, dict in self.neighbours(cur).items():
+                for direction, flow in dict.items():
+                    # capacity = self.get_capacity(cur, nbr, direction)
+                    if direction == 'forward' and nbr != self.n-1 \
+                            and not visited[nbr]:
+                        d[nbr] = d[cur] + 1
+                        visited[nbr] = True
+                        queue.append(nbr)
+                        visited_queue.append(nbr)
+        return d, visited_queue, visited
+
+    def reversed_bfs_for_s(self):  # Не используется
         d = [0 for i in range(self.n)]
         visited = [False for i in range(self.n)]
         visited_queue = deque()
@@ -68,7 +130,7 @@ class ResidualNetwork(object):
         for nbr, dict in self.neighbours(0).items():
             for direction, flow in dict.items():
                 capacity = self.get_capacity(0, nbr, direction)
-                if direction == 'backward' and flow != capacity and nbr != n-1:
+                if direction == 'backward' and flow != capacity and nbr != self.n-1:
                     d[nbr] = 1
                     visited[nbr] = True
                     queue.append(nbr)
@@ -78,7 +140,7 @@ class ResidualNetwork(object):
             for nbr, dict in self.neighbours(cur).items():
                 for direction, flow in dict.items():
                     capacity = self.get_capacity(cur, nbr, direction)
-                    if direction == 'backward' and flow != capacity and nbr != n-1 \
+                    if direction == 'backward' and flow != capacity and nbr != self.n-1 \
                             and not visited[nbr]:
                         d[nbr] = d[cur] + 1
                         visited[nbr] = True
@@ -86,38 +148,52 @@ class ResidualNetwork(object):
                         visited_queue.append(nbr)
         return d, visited_queue, visited
 
-    def reversed_copy_bfs_for_t(self):
+    def reversed_bfs_for_t(self):
+        graph = [{} for i in range(self.n)]
+        for node in range(self.n):
+            for nbr, dict in self.neighbours(node).items():
+                for direction, flow in dict.items():
+                    if direction == 'forward' and nbr != 0:
+                        graph[nbr].update({node: 0})
         d = [0 for i in range(self.n)]
         visited = [False for i in range(self.n)]
         visited_queue = deque()
         queue = deque()
-        visited[n-1] = True
-        for nbr, dict in self.neighbours(n-1).items():
-            for direction, flow in dict.items():
-                capacity = self.get_capacity(n-1, nbr, direction)
-                if direction == 'backward' and flow != capacity and nbr != 0:
-                    d[nbr] = 1
+        visited[self.n-1] = True
+        for nbr in graph[self.n-1].keys():
+            if nbr != 0:
+                d[nbr] = 1
+                visited[nbr] = True
+                queue.append(nbr)
+                visited_queue.append(nbr)
+        while len(queue) != 0:
+            cur = queue.popleft()
+            for nbr in graph[cur].keys():
+                if not visited[nbr] and nbr != 0:
+                    d[nbr] = d[cur] + 1
                     visited[nbr] = True
                     queue.append(nbr)
                     visited_queue.append(nbr)
-        while len(queue) != 0:
-            cur = queue.popleft()
-            for nbr, dict in self.neighbours(cur).items():
-                for direction, flow in dict.items():
-                    capacity = self.get_capacity(cur, nbr, direction)
-                    if direction == 'backward' and flow != capacity and nbr != 0 \
-                            and not visited[nbr]:
-                        d[nbr] = d[cur] + 1
-                        visited[nbr] = True
-                        queue.append(nbr)
-                        visited_queue.append(nbr)
+        # for nbr, dict in self.neighbours(n-1).items():
+        #     for direction, flow in dict.items():
+        #         capacity = self.get_capacity(n-1, nbr, direction)
+        #         if direction == 'backward' and flow != capacity and nbr != 0:
+        #             d[nbr] = 1
+        #             visited[nbr] = True
+        #             queue.append(nbr)
+        #             visited_queue.append(nbr)
+        # while len(queue) != 0:
+        #     cur = queue.popleft()
+        #     for nbr, dict in self.neighbours(cur).items():
+        #         for direction, flow in dict.items():
+        #             capacity = self.get_capacity(cur, nbr, direction)
+        #             if direction == 'backward' and flow != capacity and nbr != 0 \
+        #                     and not visited[nbr]:
+        #                 d[nbr] = d[cur] + 1
+        #                 visited[nbr] = True
+        #                 queue.append(nbr)
+        #                 visited_queue.append(nbr)
         return d, visited_queue, visited
-
-    # def add_edge(self, u, v, **kwargs):
-    #     self.G.add_edge(u, v, **kwargs)
-    #
-    # def remove_edge(self, u, v):
-    #     self.G.remove_edge(u, v)
 
 
 def generate_max_graph(n):
@@ -170,26 +246,23 @@ def relabel(G, h, u, n):
 def push(G, e, u, v, direction):
     flow = G.get_flow(u, v, direction)
     delta = min(e[u], flow)
-
+    opposite_direction = {'forward': 'backward', 'backward': 'forward'}
     # Изменяем значения избытков, удаляем или добавляем прямые/обратные ребра в остаточной сеи при необходимости
     e[u] -= delta
     e[v] += delta
-    G.update_flow(u, v, direction, delta, False)
-    if direction == 'forward':
-        G.update_flow(v, u, 'backward', delta, True)
+    # G.update_flow(u, v, direction, delta, False)
+    # if direction == 'forward':
+    #     G.update_flow(v, u, 'backward', delta, True)
+    # else:
+    #     G.update_flow(v, u, 'forward', delta, True)
+    if G.has_edge(v, u, opposite_direction.get(direction)):
+        G.update_flow(v, u, opposite_direction.get(direction), delta, True)
     else:
-        G.update_flow(v, u, 'forward', delta, True)
-    # if G.has_edge(v, u):
-    #     G.edge(v, u)['flow'] += delta
-    # else:
-    #     if info.get('forward'):
-    #         G.add_edge(v, u, capacity=info.get('capacity'), flow=delta, forward=False)
-    #     else:
-    #         G.add_edge(v, u, capacity=info.get('capacity'), flow=delta, forward=True)
-    # if delta == info.get('flow'):
-    #     G.remove_edge(u, v)
-    # else:
-    #     G.edge(u, v)['flow'] -= delta
+        G.add_edge(v, u, opposite_direction.get(direction), delta)
+    if delta == flow:
+        G.remove_edge(u, v, direction)
+    else:
+        G.update_flow(u, v, direction, delta, False)
 
 
 def max_flow(G, n, m):  # Алгоритм макс потока v0.02
@@ -198,23 +271,23 @@ def max_flow(G, n, m):  # Алгоритм макс потока v0.02
     Gf = ResidualNetwork(G)
     queue = deque()
 
-    neighbours = Gf.neighbours(0).keys()  # Проталкиваем поток по всем ребрам истока
+    neighbours = list(Gf.neighbours(0).keys())  # Проталкиваем поток по всем ребрам истока
     for node in neighbours:
         if Gf.has_edge(0, node, 'forward'):
             capacity = Gf.get_capacity(0, node, 'forward')
-            Gf.update_flow(0, node, 'forward', capacity, False)
-            Gf.update_flow(node, 0, 'backward', capacity, True)
+            Gf.add_edge(node, 0, 'backward', capacity)
             e[node] = capacity
             e[0] -= capacity
+    for node in neighbours:
+        Gf.remove_edge(0, node, 'forward')
 
-    d, visited_queue, visited = Gf.reversed_copy_bfs_for_t()
+    d, visited_queue, visited = Gf.reversed_bfs_for_t()
     h[0] = n
-    for i in range(1, n):
-        if d[i] != 0:
-            h[i] = d[i]
+    for node in visited_queue:
+        h[node] = d[node]
     while len(visited_queue) != 0:
         queue.append(visited_queue.pop())
-    for i in range(1, n-1):
+    for i in range(1, n - 1):
         if not visited[i]:
             queue.append(i)
     gr_counter = 0  # Счетчик для запуска bfs для global relabeling
@@ -223,12 +296,12 @@ def max_flow(G, n, m):  # Алгоритм макс потока v0.02
         cur = queue.popleft()
         has_neighbour_with_h = False
         while e[cur] != 0:
-            if gr_counter >= n:  # Если выполнили m операций push\relabel выполняем global relabeling
-                d, visited_queue_s, visited_s = Gf.reversed_copy_bfs_for_s()
-                for node in visited_queue:
+            if gr_counter >= m:  # Если выполнили m операций relabel выполняем global relabeling
+                d, visited_queue_s, visited_s = Gf.direct_bfs_for_s()  # Разница здесь
+                for node in visited_queue_s:
                     h[node] = h[0] + d[node]
-                d, visited_queue_t, visited_t = Gf.reversed_copy_bfs_for_t()
-                for node in visited_queue:
+                d, visited_queue_t, visited_t = Gf.reversed_bfs_for_t()
+                for node in visited_queue_t:
                     h[node] = d[node]
                 gr_counter = 0
             neighbours = Gf.neighbours(cur)  # Переменные для сохранения соседа, у которого h(u) = h(v) + 1
@@ -238,7 +311,7 @@ def max_flow(G, n, m):  # Алгоритм макс потока v0.02
             direction_to_neighbour = None
             for node, dict in neighbours.items():  # Поиск такого соседа
                 for direction, flow in dict.items():
-                    if h[cur] == h[node] + 1 and flow != 0:
+                    if h[cur] == h[node] + 1:
                         has_neighbour_with_h = True
                         neighbour_with_h = node
                         e_in_neighbour = e[node]
@@ -247,15 +320,16 @@ def max_flow(G, n, m):  # Алгоритм макс потока v0.02
             if has_neighbour_with_h:  # Если сосед найден, делаем push
                 push(Gf, e, cur, neighbour_with_h, direction_to_neighbour)
                 # gr_counter += 1
-                if e_in_neighbour == 0 and neighbour_with_h not in (0, n-1):  # Добавляем соседва в очередь,
+                if e_in_neighbour == 0 and neighbour_with_h not in (0, n - 1):  # Добавляем соседва в очередь,
                     queue.append(neighbour_with_h)  # если его избыток был равен 0
             else:
                 break
         if not has_neighbour_with_h and e[cur] != 0:  # Если текущая вершина, не имеет соседей с h(v) = h(u) - 1, тогда
             relabel(Gf, h, cur, n)  # текущую вершину нужно поднять
             queue.append(cur)  # Добавляем текущую вершину в конец очереди
-            # gr_counter += 1
-    return Gf, e[n-1]
+            gr_counter += 1
+    return Gf, e, h
+
 
 
 def bfs(G, u, n):  # Поиск в ширину
@@ -285,202 +359,30 @@ def dfs(G, u, n):  # Поиск в глубину
     while len(stack) != 0:
         cur = stack.pop()
         for node, dict in G.neighbours(cur).items():
-            for info in dict.values():
-                if info.get('flow') != 0 and not visited[node]:
+            for flow in dict.values():
+                if flow != 0 and not visited[node]:
                     reachable.append(node)
                     visited[node] = True
                     stack.append(node)
-    return reachable
-
-SIGMA = 30
-OBJCOLOR, BKGCOLOR = (152, 94, 56), (255,255,255)
-OBJ, BKG = "OBJ", "BKG"
-OBJCODE, BKGCODE = 1, 2
-
-SOURCE, SINK = -2, -1
-SF = 10
-CUTCOLOR = (0, 0, 255)
-
-def plantSeed(image, r, c):
-
-    def drawLines(x, y, pixelType):
-        if pixelType == OBJ:
-            color, code = OBJCOLOR, OBJCODE
-            seeds[x][y] = OBJCODE
-        else:
-            color, code = BKGCOLOR, BKGCODE
-            seeds[x][y] = BKGCODE
-        cv2.circle(image, (x, y), radius, color, thickness)
-        cv2.circle(seeds, (x // SF, y // SF), radius // SF, code, thickness)
-
-    def onMouse(event, x, y, flags, pixelType):
-        global drawing
-        if event == cv2.EVENT_LBUTTONDOWN:
-            drawing = True
-            drawLines(x, y, pixelType)
-        elif event == cv2.EVENT_MOUSEMOVE and drawing:
-            drawLines(x, y, pixelType)
-        elif event == cv2.EVENT_LBUTTONUP:
-            drawing = False
-
-    def paintSeeds(pixelType):
-        print("Planting", pixelType, "seeds")
-        global drawing
-        drawing = False
-        windowname = "Plant " + pixelType + " seeds"
-        cv2.namedWindow(windowname, cv2.WINDOW_AUTOSIZE)
-        cv2.setMouseCallback(windowname, onMouse, pixelType)
-        while (1):
-            cv2.imshow(windowname, image)
-            if cv2.waitKey(1) & 0xFF == 27:
-                break
-        cv2.destroyAllWindows()
-    
-    seeds = np.zeros((r, c), dtype="uint8")
-    image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-
-    radius = 10
-    thickness = -1 # fill the whole circle
-    global drawing
-    drawing = False
-    
-    paintSeeds(OBJ)
-    paintSeeds(BKG)
-    
-    return seeds, image
+    return reachable, visited
 
 
-def boundaryPenalty(ip, iq):
-    bp = 100 * exp(- pow(int(ip) - int(iq), 2) / (2 * pow(SIGMA, 2)))
-    return bp
+def find_path(G, n, start, stop):
+    prev = [-1 for i in range(n)]
+    visited = [False for i in range(n)]
+    queue = deque()
+    queue.append(start)
+    cur = None
+    while len(queue) != 0 and cur != stop:
+        cur = queue.popleft()
+        for nbr in G.neighbours(cur).keys():
+            if not visited[nbr]:
+                queue.append(nbr)
+                visited[nbr] = True
+                prev[nbr] = cur
+    list = [stop]
+    while prev[stop] != -1 and prev[stop] != start:
+        list.append(prev[stop])
+        stop = prev[stop]
+    return list
 
-def makeNLinks(graph, image, r, c):
-    K = -float("inf")
-    count = 0
-    for i in range(r):
-        for j in range(c):
-            graph.add_node(i * c + j)
-            count = count + 1
-            x = i * c + j
-            if i + 1 < r: # Нижний пиксель
-                y = (i + 1) * c + j
-                bp = boundaryPenalty(image[i][j], image[i + 1][j])
-                graph.add_edge(x, y, capacity=bp)
-                graph.add_edge(y, x, capacity=bp)
-                K = max(K, bp)
-               
-            if i + 1 < r: # Верхний пиксель
-                y = (i - 1) * c + j
-                bp = boundaryPenalty(image[i][j], image[i - 1][j])
-                graph.add_edge(x, y, capacity=bp)
-                graph.add_edge(y, x, capacity=bp)
-                K = max(K, bp)
-            if j + 1 < c: # Пиксель справа
-                y = i * c + j + 1
-                bp = boundaryPenalty(image[i][j], image[i][j + 1])
-                graph.add_edge(x, y, capacity=bp)
-                graph.add_edge(y, x, capacity=bp)
-                K = max(K, bp)
-            if j + 1 < c: # Пиксель слева
-                y = i * c + j - 1
-                bp = boundaryPenalty(image[i][j], image[i][j - 1])
-                graph.add_edge(x, y,capacity= bp)
-                graph.add_edge(y, x,capacity= bp)
-                K = max(K, bp)
-    print(count)
-    return K
-
-
-def makeTLinks(graph, seeds, K, r, c):
-    
-    for i in range(r):
-        for j in range(c):
-            x = i * c + j
-            if seeds[i][j] == OBJCODE:
-                graph.add_edge(SOURCE,x, capacity=K)
-            elif seeds[i][j] == BKGCODE:
-                graph.add_edge(x,SINK, capacity=K)
-                
-    return graph
-                
-                
-def buildGraph(image, image_rgb, rows, columns):
-  
-    graph = nx.DiGraph()
-    
-    #Добавляем исток и сток
-    graph.add_node(0)
-    graph.add_node(rows*columns+2)
-    
-    #n-links - список соседних ребер между пикселями
-    K = makeNLinks(graph, image,  rows, columns)
-    
-    seeds, seededImage = plantSeed(image, rows, columns)
-    
-    #n-links -Добавление вершин между вершинами и  стоком, стоком
-    makeTLinks(graph, seeds, K,  rows, columns)
-    
-    return graph, seededImage
-
-def displayCut(image, cuts):
-    def colorPixel(i, j):
-        image[i][j] = CUTCOLOR
-
-    r, c = image.shape
-    image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-    for c in cuts:
-        if c[0] != SOURCE and c[0] != SINK and c[1] != SOURCE and c[1] != SINK:
-            colorPixel(c[0] // r, c[0] % r)
-            colorPixel(c[1] // r, c[1] % r)
-    return image
-
-if __name__ == '__main__':
-    # n = 10000
-    # m = (n-1)**2 - 1
-    # G = generate_max_graph(n)
-    # print(G.size())
-    # G, n, m = parse_file()
-    # Gf, mf = max_flow(G, n, m)
-    # print(mf)
-
-    #dir = "MaxFlow-tests"
-    #file = 'test_rd07.txt'
-    #for file in os.listdir(dir):
-    #    G, n, m = parse_file(os.path.join(dir, file))
-    #    print(file)
-    #    t0 = time.time()
-    #    Gf, mf = max_flow(G, n, m)
-    #    t1 = time.time()
-    #    print('Time: {}'.format(t1-t0))
-    #    print('Max flow: {}'.format(mf))
-
-    # print(dfs(Gf, 0, n))
-    
-    #Сегментация изображения
-    
-    img = Image.open('image.jpg')
-    arr = np.asarray(img, dtype='uint8')
-    
- 
-    
-    
-    gray_image = ImageOps.grayscale(img)
-    arr_gray = np.asarray(gray_image, dtype='uint8')
-    arr_rgb = np.asarray(arr, dtype='uint8')
-   
-    
-    rows = len(arr)
-    columns = len(arr[0])
-    
-    graph, seededImage = buildGraph(arr_gray, arr_rgb, rows, columns)
-   
-    G = graph
-    m = graph.number_of_edges() 
-    n = graph.number_of_nodes()
-    print(m)
-    print(n)
-    t0 = time.time()
-    Gf, mf = max_flow(G, n, m)
-    t1 = time.time()
-    print('Time: {}'.format(t1-t0))
-    print('Max flow: {}'.format(mf))
