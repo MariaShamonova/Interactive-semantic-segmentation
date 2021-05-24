@@ -16,7 +16,7 @@ from PIL import Image, ImageOps
 
 FILE = 'test2.txt'
 SIGMA = 30
-OBJCOLOR, BKGCOLOR = (152, 94, 56), (255,255,255)
+OBJCOLOR, BKGCOLOR = (152, 94, 56), (255,15,255)
 OBJ, BKG = "OBJ", "BKG"
 OBJCODE, BKGCODE = 1, 2
 
@@ -274,8 +274,14 @@ def relabel(G, h, u, n):
                 neighbours.append(node)
     min = n**2
     for node in neighbours:
-        if h[node] < min:
-            min = h[node]
+        try:
+            if h[node] < min:
+                min = h[node]
+        except: 
+            print("-")
+            print('Ex 282: ')
+            print(node)
+        
     h[u] = min+1
 
 
@@ -347,12 +353,16 @@ def max_flow(G, n, m):  # Алгоритм макс потока v0.02
             direction_to_neighbour = None
             for node, dict in neighbours.items():  # Поиск такого соседа
                 for direction, flow in dict.items():
-                    if h[cur] == h[node] + 1:
+                    try:
+                      if h[cur] == h[node] + 1:
                         has_neighbour_with_h = True
                         neighbour_with_h = node
                         e_in_neighbour = e[node]
                         direction_to_neighbour = direction
                         break
+                    except:                      
+                      print(node)
+                    
             if has_neighbour_with_h:  # Если сосед найден, делаем push
                 push(Gf, e, cur, neighbour_with_h, direction_to_neighbour)
                 # gr_counter += 1
@@ -604,7 +614,7 @@ def makeNLinks(graph, image, r, c):
                 graph.add_edge(x, y,capacity= bp)
                 graph.add_edge(y, x,capacity= bp)
                 K = max(K, bp)
-    print(count)
+
     return K
 
 
@@ -626,14 +636,12 @@ def buildGraph(image, image_rgb, r, c):
     
     #Добавляем исток и сток
     graph.add_node(0)
-    graph.add_node(rows*columns+2)
+    graph.add_node(rows*columns+1)
     
     global SOURCE 
     SOURCE = 0
     global SINK
-    SINK = rows*columns+2
-    print("SINK: ")
-    print(SINK)
+    SINK = rows*columns+1
     
     #n-links - список соседних ребер между пикселями
     K = makeNLinks(graph, image,  rows, columns)
@@ -645,16 +653,35 @@ def buildGraph(image, image_rgb, r, c):
     
     return graph, seededImage
 
-def displayCut(image, cuts, r, c):
+def displayCut(image, visited, r, c):
     def colorPixel(i, j):
         image[i][j] = CUTCOLOR
 
     image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-    for c in cuts:
-        print(c)
-        if c[0] != SOURCE and c[0] != SINK and c[1] != SOURCE and c[1] != SINK:
-            colorPixel(c[0] // r, c[0] % r)
-            colorPixel(c[1] // r, c[1] % r)
+    #for c in cuts:
+    #    print(c)
+    #    if c[0] != True and c[0] != False and c[1] != True and c[1] != False:
+    #        colorPixel(c[0] // r, c[0] % r)
+    #        colorPixel(c[1] // r, c[1] % r)
+    for i in range(1, r + 1):
+        for j in range(1, c  + 1):
+            x = (i - 1) * c + j
+            boundary = False
+            if i < r: # Нижний пиксель
+                if (visited[x] != visited[i * c + j]):
+                    boundary = True
+            if i - 2 > 0: # Верхний пиксель
+                if (visited[x] != visited[(i - 2) * c + j]):
+                    boundary = True
+            if j + 1 < c: # Пиксель справа
+                if (visited[x] != visited[(i - 1)  * c + j + 1]):
+                    boundary = True
+            if j - 1 > 0: # Пиксель слева
+                if (visited[x] != visited[(i - 1) * c + j - 1]):
+                    boundary = True
+            if boundary == True:
+                colorPixel(i , j)
+            
     return image
 
 def show_image(image):
@@ -681,11 +708,6 @@ if __name__ == '__main__':
     
     graph, seededImage = buildGraph(arr_gray, arr_rgb, rows, columns)
 
-    sorted(graph.nodes())
-
-    
-    print("count nodes of graph: ")
-    print(graph.number_of_nodes())
     
     G = graph
     m = graph.number_of_edges() 
@@ -693,26 +715,22 @@ if __name__ == '__main__':
     
     Gf, mf, h = max_flow(G, n, m)
 
-    print("SINK: ")
-    print(SINK)
-    print("SOURCE: ")
-    print(SOURCE)
+  
     
     r, visited, count = dfs(Gf, SOURCE, Gf.number_of_nodes())
+    print(visited)
+    print(count)
     #visited = np.zeros(Gf.number_of_nodes(), dtype=bool)
     #dfs_1(Gf, Gf.number_of_nodes(), SOURCE, visited)
-    print("count: ")
-    print(count)
-    print("count vertex: ")
-    print(Gf.number_of_nodes())
-    print("residual graph: ")
-    print(Gf.flow())
+  
+  
 
     
    
    
    
-    #im = displayCut(image_1, v, rows, columns)
+    im = displayCut(image_1, visited, rows, columns)
+    show_image(im)
     
     ###pathname = os.path.splitext('image.jpg')[0]
     #savename = pathname + "cut.jpg"
