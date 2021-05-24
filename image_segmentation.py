@@ -179,29 +179,13 @@ def displayCut(image, visited, r, c):
         image[i][j] = CUTCOLOR
 
     image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-    #for c in cuts:
-    #    print(c)
-    #    if c[0] != True and c[0] != False and c[1] != True and c[1] != False:
-    #        colorPixel(c[0] // r, c[0] % r)
-    #        colorPixel(c[1] // r, c[1] % r)
-    for i in range(1, r + 1):
-        for j in range(1, c  + 1):
-            x = (i - 1) * c + j
-            boundary = False
-            if i < r: # Нижний пиксель
-                if (visited[x] != visited[i * c + j]):
-                    boundary = True
-            if i - 2 > 0: # Верхний пиксель
-                if (visited[x] != visited[(i - 2) * c + j]):
-                    boundary = True
-            if j + 1 < c: # Пиксель справа
-                if (visited[x] != visited[(i - 1)  * c + j + 1]):
-                    boundary = True
-            if j - 1 > 0: # Пиксель слева
-                if (visited[x] != visited[(i - 1) * c + j - 1]):
-                    boundary = True
-            if boundary == True:
-                colorPixel(i , j)
+    print(cuts)
+    for c in cuts:
+        
+        if c[0] != True and c[0] != False and c[1] != True and c[1] != False:
+            colorPixel(c[0] // r, c[0] % r)
+            colorPixel(c[1] // r, c[1] % r)
+    
             
     return image
 
@@ -237,20 +221,44 @@ if __name__ == '__main__':
     Gf, mf, h = max_flow(G, n, m)
 
   
-    
     r, visited = dfs(Gf, SOURCE, Gf.number_of_nodes())
     print(visited)
+    
+    cuts = []
+
+    for i in range(rows):
+    
+        for j in range(columns):
+            x = (i - 1) * columns + j
+        
+            if i < rows: # Нижний пиксель
+                y = i * columns + j
+                exist_edge = G.get_edge_data(x, y)
+                if visited[x] and not visited[y] and exist_edge != None:
+                    cuts.append((x , y))
+            if i - 2 > 0: # Верхний пиксель
+                y = (i - 2) * columns + j
+                exist_edge = G.get_edge_data(x, y)
+                if visited[x] and not visited[y] and exist_edge != None:
+                    cuts.append((x , y))
+            if j + 1 < columns: # Пиксель справа
+                y = (i - 1)  * columns + j + 1
+                exist_edge = G.get_edge_data(x, y)
+                if visited[x] and not visited[y] and exist_edge != None:
+                    cuts.append((x , y))
+            if j - 1 > 0: # Пиксель слева
+                y = (i - 1) * columns + j - 1
+                exist_edge = G.get_edge_data(x, y)
+                if visited[x] and not visited[y] and exist_edge != None:
+                    cuts.append((x , y))
+                
    
     #visited = np.zeros(Gf.number_of_nodes(), dtype=bool)
     #dfs_1(Gf, Gf.number_of_nodes(), SOURCE, visited)
   
-  
 
-    
    
-   
-   
-    im = displayCut(image_1, visited, rows, columns)
+    im = displayCut(image_1, cuts, rows, columns)
     show_image(im)
     
     ###pathname = os.path.splitext('image.jpg')[0]
