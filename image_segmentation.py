@@ -18,7 +18,7 @@ from max_flow_alg import dfs
 
 
 FILE = 'test2.txt'
-SIGMA = 30
+SIGMA = 240
 OBJCOLOR, BKGCOLOR = (152, 94, 56), (255,15,255)
 OBJ, BKG = "OBJ", "BKG"
 OBJCODE, BKGCODE = 1, 2
@@ -26,8 +26,6 @@ OBJCODE, BKGCODE = 1, 2
 
 SF = 10
 CUTCOLOR = (0, 0, 255)
-
-
 
 
 def find_path(G, n, start, stop):
@@ -140,10 +138,10 @@ def makeNLinks(graph, image, r, c):
 
 
 def makeTLinks(graph, seeds, K, r, c):
-    
+ 
     for i in range(r):
         for j in range(c):
-            x = i * c + j
+            x = i * c + j + 1
             if seeds[i][j] == OBJCODE:
                 graph.add_edge(SOURCE,x, capacity=K)
             elif seeds[i][j] == BKGCODE:
@@ -180,11 +178,22 @@ def displayCut(image, visited, r, c):
 
     image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
     print(cuts)
+    
     for c in cuts:
-        
-        if c[0] != True and c[0] != False and c[1] != True and c[1] != False:
-            colorPixel(c[0] // r, c[0] % r)
-            colorPixel(c[1] // r, c[1] % r)
+        if c[0] != SOURCE and c[0] != SINK and c[1] != SOURCE and c[1] != SINK:
+            pix_1 = 0
+            pix_2 = 0
+            for i in range(1, rows + 1):
+                for j in range(1, columns + 1):
+                    
+                    if ((i - 1) * columns + j == c[0]):
+                        colorPixel(i, j)
+                    if ((i - 1) * columns + j == c[1]):                 
+                        colorPixel(i, j)
+                        
+           
+            #colorPixel(c[0] // r, c[0] % r)
+            #colorPixel(c[1] // r, c[1] % r)
     
             
     return image
@@ -222,7 +231,7 @@ if __name__ == '__main__':
 
   
     r, visited = dfs(Gf, SOURCE, Gf.number_of_nodes())
-    print(visited)
+   
     
     cuts = []
 
