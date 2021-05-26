@@ -355,16 +355,18 @@ def dfs(G, u, n):  # Поиск в глубину
     reachable = [u]
     stack = deque()
     stack.append(u)
+    count = 0
     visited[u] = True
     while len(stack) != 0:
         cur = stack.pop()
         for node, dict in G.neighbours(cur).items():
             for flow in dict.values():
                 if flow != 0 and not visited[node]:
+                    count += 1
                     reachable.append(node)
                     visited[node] = True
                     stack.append(node)
-    return reachable, visited
+    return reachable, visited, count
 
 
 def find_path(G, n, start, stop):

@@ -52,9 +52,25 @@ def plantSeed(image, r, c):
         if pixelType == OBJ:
             color, code = OBJCOLOR, OBJCODE
             seeds[x][y] = OBJCODE
+            seeds[x - 1][y] = OBJCODE
+            seeds[x + 1][y] = OBJCODE
+            seeds[x ][y - 1] = OBJCODE
+            seeds[x ][y + 1] = OBJCODE
+            seeds[x - 2][y] = OBJCODE
+            seeds[x + 2][y] = OBJCODE
+            seeds[x ][y - 2] = OBJCODE
+            seeds[x ][y + 2] = OBJCODE
         else:
             color, code = BKGCOLOR, BKGCODE
             seeds[x][y] = BKGCODE
+            seeds[x - 1][y] = BKGCODE
+            seeds[x + 1][y] = BKGCODE
+            seeds[x ][y - 1] = BKGCODE
+            seeds[x ][y + 1] = BKGCODE
+            seeds[x - 2][y] = BKGCODE
+            seeds[x + 2][y] = BKGCODE
+            seeds[x ][y - 2] = BKGCODE
+            seeds[x ][y + 2] = BKGCODE
         cv2.circle(image, (x, y), radius, color, thickness)
         cv2.circle(seeds, (x // SF, y // SF), radius // SF, code, thickness)
 
@@ -83,7 +99,7 @@ def plantSeed(image, r, c):
     
     seeds = np.zeros((r, c), dtype="uint8")
     image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-
+    
     radius = 10
     thickness = -1 # fill the whole circle
     global drawing
@@ -91,7 +107,12 @@ def plantSeed(image, r, c):
     
     paintSeeds(OBJ)
     paintSeeds(BKG)
-    
+    print(seeds)
+    for i in range(len(seeds)):
+        
+        print(seeds[i])
+        print('')
+        
     return seeds, image
 
 
@@ -138,18 +159,21 @@ def makeNLinks(graph, image, r, c):
 
 
 def makeTLinks(graph, seeds, K, r, c):
- 
-    for i in range(r):
-        for j in range(c):
-            x = i * c + j + 1
-            if seeds[i][j] == OBJCODE:
+
+    for i in range(1, r + 1):
+        for j in range(1, c + 1):
+            #x = ( i - 1) * c + j 
+            x = (i - 1) * c + j
+            if seeds[i - 1][j - 1] == OBJCODE:
+                
                 graph.add_edge(SOURCE,x, capacity=K)
-            elif seeds[i][j] == BKGCODE:
+            elif seeds[i-1][j - 1] == BKGCODE:
+               
                 graph.add_edge(x,SINK, capacity=K)
        
     return graph
                 
-def buildGraph(image, image_rgb, r, c):
+def buildGraph(image, r, c):
   
     graph = nx.DiGraph()
     
@@ -172,20 +196,19 @@ def buildGraph(image, image_rgb, r, c):
     
     return graph, seededImage
 
-def displayCut(image, visited, r, c):
+def displayCut(image, cuts, r, c):
     def colorPixel(i, j):
+        
         image[i][j] = CUTCOLOR
 
     image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-    print(cuts)
     
     for c in cuts:
         if c[0] != SOURCE and c[0] != SINK and c[1] != SOURCE and c[1] != SINK:
-            pix_1 = 0
-            pix_2 = 0
-            for i in range(1, rows + 1):
-                for j in range(1, columns + 1):
-                    
+            for i in range(1, rows):
+                for j in range(1, columns):
+                
+                   
                     if ((i - 1) * columns + j == c[0]):
                         colorPixel(i, j)
                     if ((i - 1) * columns + j == c[1]):                 
@@ -208,58 +231,64 @@ def show_image(image):
 
 
 if __name__ == '__main__':
-   
-    img = Image.open('image.jpg')
-    image_1 = cv2.imread('image.jpg', cv2.IMREAD_GRAYSCALE)
-    arr = np.asarray(img, dtype='uint8')
+    imagename = 'ball.jpg'
     
-    gray_image = ImageOps.grayscale(img)
-    arr_gray = np.asarray(gray_image, dtype='uint8')
-    arr_rgb = np.asarray(arr, dtype='uint8')
-    
-    rows = len(arr)
-    columns = len(arr[0])
-    
-    graph, seededImage = buildGraph(arr_gray, arr_rgb, rows, columns)
+    image = cv2.imread(imagename, cv2.IMREAD_GRAYSCALE)
 
+    rows = len(image)
+    columns = len(image[0])
+    
+    graph, seededImage = buildGraph(image, rows, columns)
     
     G = graph
     m = graph.number_of_edges() 
     n = graph.number_of_nodes()
     
-    Gf, mf, h = max_flow(G, n, m)
+    #Gf, mf, h = max_flow(G, n, m)
 
   
-    r, visited = dfs(Gf, SOURCE, Gf.number_of_nodes())
-   
+    #r, visited, count = dfs(Gf, SINK, Gf.number_of_nodes())
     
-    cuts = []
+    cut_value, partition = nx.minimum_cut(G, SOURCE, SINK)
+ 
+ 
+    reachable, non_reachable = partition
+  
+    cutset = set()
+    print(sorted(G.edges))
+    for u, nbrs in ((n, G[n]) for n in reachable):
+        cutset.update((u, v) for v in nbrs if v in non_reachable)
+    print(sorted(cutset))
+    [('c', 'y'), ('x', 'b')]
+    cut_value == sum(G.edges[u, v]["capacity"] for (u, v) in cutset)
+    print(cut_value)
+    #cuts = []
 
-    for i in range(rows):
+    #for i in range(rows):
     
-        for j in range(columns):
-            x = (i - 1) * columns + j
+    #    for j in range(columns):
+    #        x = (i - 1) * columns + j
         
-            if i < rows: # Нижний пиксель
-                y = i * columns + j
-                exist_edge = G.get_edge_data(x, y)
-                if visited[x] and not visited[y] and exist_edge != None:
-                    cuts.append((x , y))
-            if i - 2 > 0: # Верхний пиксель
-                y = (i - 2) * columns + j
-                exist_edge = G.get_edge_data(x, y)
-                if visited[x] and not visited[y] and exist_edge != None:
-                    cuts.append((x , y))
-            if j + 1 < columns: # Пиксель справа
-                y = (i - 1)  * columns + j + 1
-                exist_edge = G.get_edge_data(x, y)
-                if visited[x] and not visited[y] and exist_edge != None:
-                    cuts.append((x , y))
-            if j - 1 > 0: # Пиксель слева
-                y = (i - 1) * columns + j - 1
-                exist_edge = G.get_edge_data(x, y)
-                if visited[x] and not visited[y] and exist_edge != None:
-                    cuts.append((x , y))
+    #        if i < rows: # Нижний пиксель
+    #            y = i * columns + j
+    #            exist_edge = G.get_edge_data(x, y)
+    #            if visited[x] and not visited[y] and exist_edge != None:
+    #                cuts.append((x , y))
+    #        if i - 2 > 0: # Верхний пиксель
+    #            y = (i - 2) * columns + j
+    #            exist_edge = G.get_edge_data(x, y)
+    #            if visited[x] and not visited[y] and exist_edge != None:
+    #                cuts.append((x , y))
+    #        if j + 1 < columns: # Пиксель справа
+    #            y = (i - 1)  * columns + j + 1
+    #            exist_edge = G.get_edge_data(x, y)
+    #            if visited[x] and not visited[y] and exist_edge != None:
+    #                cuts.append((x , y))
+    #        if j - 1 > 0: # Пиксель слева
+    #            y = (i - 1) * columns + j - 1
+    #            exist_edge = G.get_edge_data(x, y)
+    #            if visited[x] and not visited[y] and exist_edge != None:
+    #                cuts.append((x , y))
                 
    
     #visited = np.zeros(Gf.number_of_nodes(), dtype=bool)
@@ -267,7 +296,7 @@ if __name__ == '__main__':
   
 
    
-    im = displayCut(image_1, cuts, rows, columns)
+    im = displayCut(image, cutset, rows, columns)
     show_image(im)
     
     ###pathname = os.path.splitext('image.jpg')[0]
