@@ -28,8 +28,10 @@ LOADSEEDS = False
 
 def show_image(image):
     windowname = "Segmentation"
-    cv2.namedWindow(windowname, cv2.WINDOW_NORMAL)
+    cv2.namedWindow(windowname, cv2.WINDOW_AUTOSIZE)
     cv2.startWindowThread()
+    print(len(image))
+    print(len(image[0]))
     cv2.imshow(windowname, image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
@@ -214,6 +216,7 @@ def imageSegmentation( ):
     #print(cuts)
     image = displayCut(image, cutset)
     #image = cv2.resize(image, (0, 0), fx=SF, fy=SF)
+    
     show_image(image)
     savename = pathname + "cut.jpg"
     cv2.imwrite(savename, image)
