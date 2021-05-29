@@ -98,7 +98,7 @@ def plantSeed(image):
     image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
 
     radius = 10
-    thickness = -1 # fill the whole circle
+    thickness = -1
     global drawing
     drawing = False
     
@@ -182,12 +182,11 @@ def buildGraph(image):
     K = makeNLinks(graph, image)
     
     seeds, seededImage, intervals, count_of_seeds = plantSeed(image)
-    print(intervals)
     makeTLinks(graph, seeds, K, intervals,count_of_seeds,  image)
   
     graph.add_node(rows*columns+1)
     
-    return graph, seededImage, K, seeds
+    return graph, seededImage, K, seeds, intervals
     
 
 def makeNLinks(graph, image):
@@ -256,6 +255,7 @@ def makeTLinks(graph, seeds, K, intervals, count_of_seeds, image):
               
 
 def displayCut(image, cuts):
+    print('cuts')
     def colorPixel(i, j):
         try:
             image[i][j] = CUTCOLOR
@@ -290,17 +290,80 @@ def createHistogram(imagefile):
     plt.plot(histr)
     plt.show()
     
+def addedSeeds(image, graph, K, intervals, imagefile):
+    image_gray =  cv2.imread(imagefile, cv2.IMREAD_GRAYSCALE)
+    def drawLines(x, y, pixelType):
+        vertex = y * len(image[0]) + x
+        allValue = intervals[getInterval(image_gray, y, x), 0]
+        if pixelType == OBJ:
+            if (graph.has_edge(SOURCE, vertex) and graph.has_edge(vertex, SINK)):
+          
+                color, code = OBJCOLOR, OBJCODE
+          
+                edge_s_v = graph.edges[SOURCE, vertex]["capacity"]
+                edge_v_t = graph.edges[vertex, SINK]["capacity"]
+                
+                graph.edges[SOURCE, vertex]["capacity"] = edge_s_v + K + regionalPenalty(intervals[getInterval(image_gray, y, x), 1], allValue)
+                graph.edges[vertex, SINK]["capacity"] = edge_v_t + regionalPenalty(intervals[getInterval(image_gray, y, x), 2], allValue)
+         
+                cv2.circle(image, (x, y), radius, color, thickness)
+        else:  
+            if (graph.has_edge(SOURCE, vertex) and graph.has_edge(vertex, SINK)):
+          
+                color, code = BKGCOLOR, BKGCODE
+                
+                edge_s_v = graph.edges[SOURCE, vertex]["capacity"]
+                edge_v_t = graph.edges[vertex, SINK]["capacity"]
+                
+                graph.edges[SOURCE, vertex]["capacity"] = edge_s_v + K + regionalPenalty(intervals[getInterval(image_gray, y, x), 2], allValue)
+                graph.edges[vertex, SINK]["capacity"] = edge_v_t + regionalPenalty(intervals[getInterval(image_gray, y, x), 1], allValue)
+                
+                cv2.circle(image, (x, y), radius, color, thickness)
+        
 
+    def onMouse(event, x, y, flags, pixelType):
+        global drawing
+        if event == cv2.EVENT_LBUTTONDOWN:
+            drawing = True
+            drawLines(x, y, pixelType)
+        elif event == cv2.EVENT_MOUSEMOVE and drawing:
+            drawLines(x, y, pixelType)
+        elif event == cv2.EVENT_LBUTTONUP:
+            drawing = False
+
+    def paintSeeds(pixelType):
+        print("Planting", pixelType, "seeds")
+        global drawing
+        drawing = False
+        windowname = "Plant " + pixelType + " seeds"
+        cv2.namedWindow(windowname, cv2.WINDOW_AUTOSIZE)
+        cv2.setMouseCallback(windowname, onMouse, pixelType)
+        while (1):
+            cv2.imshow(windowname, image)
+            if cv2.waitKey(1) & 0xFF == 27:
+                break
+        cv2.destroyAllWindows()
+
+    radius = 10
+    thickness = -1 # fill the whole circle
+    global drawing
+    drawing = False
+
+    paintSeeds(OBJ)
+    paintSeeds(BKG)
+    
+    return graph
+    
 def imageSegmentation( ):
     #size=(30, 30)
-    imagefile= 'cross-gr.jpg'
+    imagefile= 'imagecut.jpg'
     
     pathname = os.path.splitext(imagefile)[0]
     image = cv2.imread(imagefile, cv2.IMREAD_GRAYSCALE)
     
     #image = cv2.resize(image, size)
     
-    graph, seededImage, K, seeds = buildGraph(image)
+    graph, seededImage, K, seeds, intervals = buildGraph(image)
     createHistogram(imagefile)
     cv2.imwrite(pathname + "seeded.jpg", seededImage)
 
@@ -308,7 +371,8 @@ def imageSegmentation( ):
     cut_value, partition = nx.minimum_cut(graph, SOURCE, SINK)
  
     reachable, non_reachable = partition
-  
+    print('reachable: ',len(reachable))
+    
     cutset = set()
     
     for u, nbrs in ((n, graph[n]) for n in reachable):
@@ -326,21 +390,21 @@ def imageSegmentation( ):
     answer = input("If you want to improve segmentation inter Y else N:")
     while answer == "Y":
 
-        seeds = addedSeed(seeds,image)
-        makeTLinks(graph, seeds, K)
+        graph = addedSeeds(image, graph, K, intervals, imagefile)
+
         cut_value, partition = nx.minimum_cut(graph, SOURCE, SINK)
- 
         reachable, non_reachable = partition
         cutset = set()
     
         for u, nbrs in ((n, graph[n]) for n in reachable):
             cutset.update((u, v) for v in nbrs if v in non_reachable)
-            #print(sorted(cutset))
-            [('c', 'y'), ('x', 'b')]
-            cut_value == sum(graph.edges[u, v]["capacity"] for (u, v) in cutset)
-            #print(cut_value)
+    
+        [('c', 'y'), ('x', 'b')]
+        cut_value == sum(graph.edges[u, v]["capacity"] for (u, v) in cutset)
         image = cv2.imread(imagefile, cv2.IMREAD_GRAYSCALE)
+    
         image = displayCut(image, cutset)
+
         show_image(image)
         answer = input("If you want to improve segmentation inter Y else N:")
        
