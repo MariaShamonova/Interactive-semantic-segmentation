@@ -15,7 +15,7 @@ from math import exp, pow
 import networkx as nx
 
 SIGMA = 30
-# LAMBDA = 1
+LAMBDA = 1
 OBJCOLOR, BKGCOLOR = (0, 0, 255), (0, 255, 0)
 OBJCODE, BKGCODE = 1, 2
 OBJ, BKG = "OBJ", "BKG"
@@ -28,34 +28,44 @@ LOADSEEDS = False
 
 def show_image(image):
     windowname = "Segmentation"
-    cv2.namedWindow(windowname, cv2.WINDOW_AUTOSIZE)
+    cv2.namedWindow(windowname, cv2.WINDOW_NORMAL)
     cv2.startWindowThread()
     cv2.imshow(windowname, image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+ 
+    
+def getInterval(image,  i, j):
+   
+    
+    p = image[i][j]
+
+    step = 256//25
+    count = 0
+   
+    for i in range(0, 255, step):
+        if (i <  (256 // step * step)):
+            if(step * count <= p and p < step*(count + 1)):
+                return count 
+        else:
+            if (step * count <= p):
+                return count
+        count += 1
     
 def plantSeed(image):
-
+    
     def drawLines(x, y, pixelType):
         if pixelType == OBJ:
             color, code = OBJCOLOR, OBJCODE
+            intervals[getInterval(image_gray, y , x), 1] += 1
         else:
             color, code = BKGCOLOR, BKGCODE
+            intervals[getInterval(image_gray, y , x), 2] += 1
     
-        for i in range(10):
-            
-            cv2.circle(image, (x - i, y), radius, color, thickness)
-            cv2.circle(seeds, ((x - i)// SF, y // SF), radius // SF, code, thickness)
-            
-            cv2.circle(image, (x + i, y), radius, color, thickness)
-            cv2.circle(seeds, ((x + i)// SF, y // SF), radius // SF, code, thickness)
-            
-            cv2.circle(image, (x , y - i), radius, color, thickness)
-            cv2.circle(seeds, (x // SF, (y - i) // SF), radius // SF, code, thickness)
-            
-            cv2.circle(image, (x , y + i), radius, color, thickness)
-            cv2.circle(seeds, (x // SF, (y + i) // SF), radius // SF, code, thickness)
-           
+        intervals[getInterval(image_gray, y, x), 0] += 1
+        cv2.circle(image, (x , y), radius, color, thickness)
+        cv2.circle(seeds, (x // SF, y // SF), radius // SF, code, thickness)
+
 
     def onMouse(event, x, y, flags, pixelType):
         global drawing
@@ -72,7 +82,7 @@ def plantSeed(image):
         global drawing
         drawing = False
         windowname = "Plant " + pixelType + " seeds"
-        cv2.namedWindow(windowname, cv2.WINDOW_AUTOSIZE)
+        cv2.namedWindow(windowname, cv2.WINDOW_NORMAL)
         cv2.setMouseCallback(windowname, onMouse, pixelType)
         while (1):
             cv2.imshow(windowname, image)
@@ -80,24 +90,24 @@ def plantSeed(image):
                 break
         cv2.destroyAllWindows()
     
-  
+    intervals = np.zeros((26, 3), dtype="uint8")
     seeds = np.zeros((len(image), len(image[0])), dtype="uint8")
-    #print(image)
-
-    image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
    
-    #image = cv2.resize(image, (0, 0), fx=SF, fy=SF)
+    image_gray = image.copy()
+    
+    image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
 
     radius = 10
     thickness = -1 # fill the whole circle
     global drawing
     drawing = False
     
-
     paintSeeds(OBJ)
     paintSeeds(BKG)
     
-    return seeds, image
+    count_of_seeds = sum((int(intervals[i, 0]) for i in range(0, int(len(intervals)))))
+
+    return seeds, image, intervals, count_of_seeds
 
 def addedSeed(seeds, image):
     
@@ -150,6 +160,13 @@ def boundaryPenalty(ip, iq):
     bp = 100 * exp(- pow(int(ip) - int(iq), 2) / (2 * pow(SIGMA, 2)))
     return bp
 
+def regionalPenalty(favorableValue, allValue):
+    if (favorableValue != 0 and allValue != 0):
+        rp = LAMBDA * (favorableValue / allValue)
+    else:
+        rp = 0  
+    return rp
+
 def buildGraph(image):
     
     graph = nx.DiGraph()
@@ -164,9 +181,9 @@ def buildGraph(image):
 
     K = makeNLinks(graph, image)
     
-    seeds, seededImage = plantSeed(image)
-    
-    makeTLinks(graph, seeds, K)
+    seeds, seededImage, intervals, count_of_seeds = plantSeed(image)
+    print(intervals)
+    makeTLinks(graph, seeds, K, intervals,count_of_seeds,  image)
   
     graph.add_node(rows*columns+1)
     
@@ -208,19 +225,35 @@ def makeNLinks(graph, image):
                 K = max(K, bp)
     return K
 
-def makeTLinks(graph, seeds, K):
+def makeTLinks(graph, seeds, K, intervals, count_of_seeds, image):
     r, c = len(seeds), len(seeds[0])
-    K = 150
+   
     for i in range(r):
         for j in range(c):
             x = i * c + j
     
             if seeds[i][j] == OBJCODE:
-
                 graph.add_edge(SOURCE, x, capacity=K)
             elif seeds[i][j] == BKGCODE:
                 graph.add_edge(x, SINK, capacity=K)   
-           
+            else:
+                graph.add_edge(
+                    SOURCE, 
+                    x, 
+                    capacity=regionalPenalty(
+                        intervals[getInterval(image, i, j), 2],
+                        intervals[getInterval(image, i, j), 0]
+                    )
+                )  
+                graph.add_edge(
+                    x, 
+                    SINK, 
+                    capacity=regionalPenalty(
+                        intervals[getInterval(image, i, j), 1],
+                        intervals[getInterval(image, i, j), 0]
+                    )
+                ) 
+              
 
 def displayCut(image, cuts):
     def colorPixel(i, j):
@@ -240,18 +273,35 @@ def displayCut(image, cuts):
             colorPixel((c[1] - 1) // col, (c[1] - 1) % col)
     return image
 
-
+def createHistogram(imagefile):
+    import cv2
+    # импорт библиотеки для черчения
+    
+    from matplotlib import pyplot as plt
+     
+    # читает входное изображение
+    img = cv2.imread(imagefile,0)
+       
+    # найти частоту пикселей в диапазоне 0-255
+    
+    histr = cv2.calcHist([img],[0],None,[256],[0,256])
+    
+    # показать графическое изображение изображения
+    plt.plot(histr)
+    plt.show()
     
 
 def imageSegmentation( ):
     #size=(30, 30)
-    imagefile= 'bool-320.jpg'
+    imagefile= 'cross-gr.jpg'
+    
     pathname = os.path.splitext(imagefile)[0]
     image = cv2.imread(imagefile, cv2.IMREAD_GRAYSCALE)
     
     #image = cv2.resize(image, size)
     
     graph, seededImage, K, seeds = buildGraph(image)
+    createHistogram(imagefile)
     cv2.imwrite(pathname + "seeded.jpg", seededImage)
 
     
