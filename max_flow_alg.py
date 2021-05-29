@@ -346,7 +346,7 @@ def redo_graph(Gf, n, new_edges):
         Gf.change_capacity(elem[0], n-1, elem[2])
 
 
-def max_flow_aditional(Gf, n, m):  # Алгоритм макс потока v0.02
+def max_flow_additional(Gf, n, m):  # Алгоритм макс потока v0.02
     e = [0 for i in range(n)]  # Инициализация избытка, высоты и очереди
     h = [0 for i in range(n)]
     queue = deque()
@@ -431,6 +431,18 @@ def bfs(G, u, n):  # Поиск в ширину
 
 def min_cut(G, n, m):
     Gf, e, h = max_flow(G, n, m)
+    r, v, c = dfs(G, 0, n)
+    mc = [[], []]
+    for i in range(n):
+        if v[i]:
+            mc[0].append(i)
+        else:
+            mc[1].append(i)
+    return Gf, mc
+
+
+def min_cut_additional(G, n, m):
+    Gf, e, h = max_flow_additional(G, n, m)
     r, v, c = dfs(G, 0, n)
     mc = [[], []]
     for i in range(n):
