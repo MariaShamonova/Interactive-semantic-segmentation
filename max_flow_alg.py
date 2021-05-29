@@ -46,6 +46,15 @@ class ResidualNetwork(object):
     # def edge(self, u, v, d):
     #     return self.G.edges[u, v, d]
 
+    def change_capacity(self, u, v, c):
+        old_capacity = self.get_capacity(u, v, 'forward')
+        self.capacity[u].update({v: c})
+        add_flow = c - old_capacity
+        if self.has_edge(u, v, 'forward'):
+            self.update_flow(u, v, 'forward', add_flow, True)
+        else:
+            self.add_edge(u, v, 'forward', add_flow)
+
     def get_capacity(self, u, v, d):
         if d == 'forward':
             return self.capacity[u].get(v)
@@ -331,6 +340,76 @@ def max_flow(G, n, m):  # Алгоритм макс потока v0.02
     return Gf, e, h
 
 
+def redo_graph(Gf, n, new_edges):
+    for elem in new_edges:
+        Gf.change_capacity(0, elem[0], elem[1])
+        Gf.change_capacity(elem[0], n-1, elem[2])
+
+
+def max_flow_aditional(Gf, n, m):  # Алгоритм макс потока v0.02
+    e = [0 for i in range(n)]  # Инициализация избытка, высоты и очереди
+    h = [0 for i in range(n)]
+    queue = deque()
+
+    neighbours = list(Gf.neighbours(0).keys())  # Проталкиваем поток по всем ребрам истока
+    for node in neighbours:
+        if Gf.has_edge(0, node, 'forward'):
+            capacity = Gf.get_capacity(0, node, 'forward')
+            flow = Gf.get_flow(0, node, 'forward')
+            if Gf.has_edge(node, 0, 'backward'):
+                Gf.update_flow(node, 0, 'backward', flow, True)
+            else:
+                Gf.add_edge(node, 0, 'backward', capacity)
+            e[node] = flow
+            queue.append(node)
+            e[0] -= flow
+    for node in neighbours:
+        Gf.remove_edge(0, node, 'forward')
+
+    d, visited_queue, visited = Gf.reversed_bfs_for_t()
+    h[0] = n
+    for node in visited_queue:
+        h[node] = d[node]
+    gr_counter = 0  # Счетчик для запуска bfs для global relabeling
+
+    while len(queue) != 0:  # Алгоритм проталкивания предпотока
+        cur = queue.popleft()
+        has_neighbour_with_h = False
+        while e[cur] != 0:
+            if gr_counter >= m:  # Если выполнили m операций relabel выполняем global relabeling
+                d, visited_queue_s, visited_s = Gf.direct_bfs_for_s()  # Разница здесь
+                for node in visited_queue_s:
+                    h[node] = h[0] + d[node]
+                d, visited_queue_t, visited_t = Gf.reversed_bfs_for_t()
+                for node in visited_queue_t:
+                    h[node] = d[node]
+                gr_counter = 0
+            neighbours = Gf.neighbours(cur)  # Переменные для сохранения соседа, у которого h(u) = h(v) + 1
+            has_neighbour_with_h = False
+            neighbour_with_h = 0
+            e_in_neighbour = 0
+            direction_to_neighbour = None
+            for node, dict in neighbours.items():  # Поиск такого соседа
+                for direction, flow in dict.items():
+                    if h[cur] == h[node] + 1:
+                        has_neighbour_with_h = True
+                        neighbour_with_h = node
+                        e_in_neighbour = e[node]
+                        direction_to_neighbour = direction
+                        break
+            if has_neighbour_with_h:  # Если сосед найден, делаем push
+                push(Gf, e, cur, neighbour_with_h, direction_to_neighbour)
+                # gr_counter += 1
+                if e_in_neighbour == 0 and neighbour_with_h not in (0, n - 1):  # Добавляем соседва в очередь,
+                    queue.append(neighbour_with_h)  # если его избыток был равен 0
+            else:
+                break
+        if not has_neighbour_with_h and e[cur] != 0:  # Если текущая вершина, не имеет соседей с h(v) = h(u) - 1, тогда
+            relabel(Gf, h, cur, n)  # текущую вершину нужно поднять
+            queue.append(cur)  # Добавляем текущую вершину в конец очереди
+            gr_counter += 1
+    return Gf, e, h
+
 
 def bfs(G, u, n):  # Поиск в ширину
     d = [0 for i in range(n)]
@@ -348,6 +427,18 @@ def bfs(G, u, n):  # Поиск в ширину
                 queue.append(node)
                 visited_queue.append(node)
     return d, visited_queue, visited
+
+
+def min_cut(G, n, m):
+    Gf, e, h = max_flow(G, n, m)
+    r, v, c = dfs(G, 0, n)
+    mc = [[], []]
+    for i in range(n):
+        if v[i]:
+            mc[0].append(i)
+        else:
+            mc[1].append(i)
+    return Gf, mc
 
 
 def dfs(G, u, n):  # Поиск в глубину
