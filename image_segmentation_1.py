@@ -11,6 +11,7 @@ import numpy as np
 import os
 import sys
 import argparse
+from max_flow_alg import min_cut, min_cut_additional
 from math import exp, pow
 import networkx as nx
 
@@ -332,10 +333,11 @@ def imageSegmentation( ):
     createHistogram(imagefile)
     cv2.imwrite(pathname + "seeded.jpg", seededImage)
 
-    
-    cut_value, partition = nx.minimum_cut(graph, SOURCE, SINK)
- 
+    Gf, partition = min_cut(graph, graph.number_of_nodes(), graph.number_of_edges())
     reachable, non_reachable = partition
+    # cut_value, partition = nx.minimum_cut(graph, SOURCE, SINK)
+    #
+    # reachable, non_reachable = partition
     print('reachable: ',len(reachable))
     
     cutset = set()
