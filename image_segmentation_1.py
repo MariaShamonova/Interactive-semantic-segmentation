@@ -357,7 +357,6 @@ def imageSegmentation( ):
     #relationship, measure_zhakkar = compareImages(image, image_compare)
     #print('1 metrica: ', relationship)
     #print('2 metrica: ', measure_zhakkar)
-    
     savename = pathname + "cut.jpg"
     cv2.imwrite(savename, image)
     
