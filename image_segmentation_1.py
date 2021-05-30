@@ -12,6 +12,7 @@ import os
 import sys
 import argparse
 from math import exp, pow
+from max_flow_alg import min_cut, min_cut_additional
 import networkx as nx
 
 SIGMA = 30
@@ -327,12 +328,13 @@ def imageSegmentation( ):
     pathname = os.path.splitext(imagefile)[0]
     image = cv2.imread(imagefile, cv2.IMREAD_GRAYSCALE)
     image_compare = cv2.imread(imagefile_compare, cv2.IMREAD_GRAYSCALE)
-    
+
     graph, seededImage, K, seeds, intervals = buildGraph(image)
     createHistogram(imagefile)
     cv2.imwrite(pathname + "seeded.jpg", seededImage)
 
-    
+    # Gf, partition = min_cut(graph, graph.number_of_nodes(), graph.number_of_edges())
+    # reachable, non_reachable = partition
     cut_value, partition = nx.minimum_cut(graph, SOURCE, SINK)
  
     reachable, non_reachable = partition
@@ -369,7 +371,7 @@ def imageSegmentation( ):
         cut_value, partition = nx.minimum_cut(graph, SOURCE, SINK)
         reachable, non_reachable = partition
         cutset = set()
-    
+
         for u, nbrs in ((n, graph[n]) for n in reachable):
             cutset.update((u, v) for v in nbrs if v in non_reachable)
     
