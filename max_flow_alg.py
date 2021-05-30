@@ -431,26 +431,36 @@ def bfs(G, u, n):  # Поиск в ширину
 
 def min_cut(G, n, m):
     Gf, e, h = max_flow(G, n, m)
-    r, v, c = dfs(G, 0, n)
+    r, v, c = dfs(Gf, 0, n)
     mc = [[], []]
     for i in range(n):
         if v[i]:
             mc[0].append(i)
         else:
             mc[1].append(i)
-    return Gf, mc
+    cut = []
+    for i in range(n):
+        for j in Gf.neighbours(i):
+            if v[i] != v[j]:
+                cut.append((i, j))
+    return Gf, mc, cut
 
 
 def min_cut_additional(G, n, m):
     Gf, e, h = max_flow_additional(G, n, m)
-    r, v, c = dfs(G, 0, n)
+    r, v, c = dfs(Gf, 0, n)
     mc = [[], []]
     for i in range(n):
         if v[i]:
             mc[0].append(i)
         else:
             mc[1].append(i)
-    return Gf, mc
+    cut = []
+    for i in range(n):
+        for j in Gf.neighbours(i):
+            if v[i] != v[j]:
+                cut.append((i, j))
+    return Gf, mc, cut
 
 
 def dfs(G, u, n):  # Поиск в глубину
