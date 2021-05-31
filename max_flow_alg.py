@@ -441,12 +441,7 @@ def min_cut(G, n, m):
             mc[0].append(i)
         else:
             mc[1].append(i)
-    cut = []
-    for i in range(n):
-        for j in Gf.neighbours(i):
-            if v[i] != v[j]:
-                cut.append((i, j))
-    return Gf, mc, cut
+    return Gf, mc
 
 
 def min_cut_additional(G, n, m):
@@ -458,12 +453,7 @@ def min_cut_additional(G, n, m):
             mc[0].append(i)
         else:
             mc[1].append(i)
-    cut = []
-    for i in range(n):
-        for j in Gf.neighbours(i):
-            if v[i] != v[j]:
-                cut.append((i, j))
-    return Gf, mc, cut
+    return Gf, mc
 
 
 def dfs(G, u, n):  # Поиск в глубину
