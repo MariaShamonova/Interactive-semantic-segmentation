@@ -168,7 +168,7 @@ def makeTLinks(graph, seeds, K, intervals, count_of_seeds, image):
    
     for i in range(r):
         for j in range(c):
-            x = i * c + j
+            x = i * c + j + 1
     
             if seeds[i][j] == OBJCODE:
                 graph.add_edge(SOURCE, x, capacity=K)
@@ -177,8 +177,8 @@ def makeTLinks(graph, seeds, K, intervals, count_of_seeds, image):
             else:
                 if (intervals[getInterval(image, i, j), 2] != 0 and count_of_seeds):
                     graph.add_edge(
-                        SOURCE, 
-                        x, 
+                        SOURCE,
+                        x,
                         capacity=regionalPenalty(
                             intervals[getInterval(image, i, j), 2],
                             count_of_seeds
@@ -187,13 +187,13 @@ def makeTLinks(graph, seeds, K, intervals, count_of_seeds, image):
                 if (intervals[getInterval(image, i, j), 1] != 0 and \
                     count_of_seeds):
                     graph.add_edge(
-                        x, 
-                        SINK, 
+                        x,
+                        SINK,
                         capacity=regionalPenalty(
                             intervals[getInterval(image, i, j), 1],
                             count_of_seeds
                         )
-                    ) 
+                    )
               
 
 def displayCut(image, cuts):
@@ -338,7 +338,7 @@ def imageSegmentation( ):
     createHistogram(imagefile)
     cv2.imwrite(pathname + "seeded.jpg", seededImage)
 
-    Gf, partition,cut_value = min_cut(graph, graph.number_of_nodes(), graph.number_of_edges())
+    Gf, partition, cutset, cut_value = min_cut(graph, graph.number_of_nodes(), graph.number_of_edges())
     reachable, non_reachable = partition
     print(cut_value)
     # cut_value, partition = nx.minimum_cut(graph, SOURCE, SINK)
@@ -347,7 +347,7 @@ def imageSegmentation( ):
     print('reachable: ',len(reachable))
     
     cutset = set()
-    
+
     for u, nbrs in ((n, graph[n]) for n in reachable):
         cutset.update((u, v) for v in nbrs if v in non_reachable)
 

@@ -287,6 +287,7 @@ def max_flow(G, n, m):  # Алгоритм макс потока v0.02
         h[node] = d[node]
     while len(visited_queue) != 0:
         queue.append(visited_queue.pop())
+
     neighbours = list(Gf.neighbours(0))  # Проталкиваем поток по всем ребрам истока
     for node in neighbours:
         if Gf.has_edge(0, node, 'forward') and visited[node]:
@@ -440,7 +441,12 @@ def min_cut(G, n, m):
             mc[0].append(i)
         else:
             mc[1].append(i)
-    return Gf, mc, maxflow
+    cut = []
+    for i in range(1, n-1):
+        for nbr in Gf.neighbours(i):
+            if v[i] != v[nbr]:
+                cut.append((i, nbr))
+    return Gf, mc, cut, maxflow
 
 
 def min_cut_additional(G, n, m):
@@ -453,7 +459,12 @@ def min_cut_additional(G, n, m):
             mc[0].append(i)
         else:
             mc[1].append(i)
-    return Gf, mc, maxflow
+    cut = []
+    for i in range(1, n - 1):
+        for nbr in Gf.neighbours(i):
+            if v[i] != v[nbr]:
+                cut.append((i, nbr))
+    return Gf, mc, cut, maxflow
 
 
 def dfs(G, u, n):  # Поиск в глубину
