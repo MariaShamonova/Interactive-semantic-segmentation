@@ -281,26 +281,24 @@ def max_flow(G, n, m):  # Алгоритм макс потока v0.02
     Gf = ResidualNetwork(G)
     queue = deque()
 
+    neighbours = list(Gf.neighbours(0))  # Проталкиваем поток по всем ребрам истока
+    for node in neighbours:
+        if Gf.has_edge(0, node, 'forward'):#  and visited[node]:
+            capacity = Gf.get_capacity(0, node, 'forward')
+            Gf.add_edge(node, 0, 'backward', capacity)
+            Gf.remove_edge(0, node, 'forward')
+            e[node] = capacity
+            e[0] -= capacity
+
     d, visited_queue, visited = Gf.reversed_bfs_for_t()
     h[0] = n
     for node in visited_queue:
         h[node] = d[node]
     while len(visited_queue) != 0:
         queue.append(visited_queue.pop())
-
-    neighbours = list(Gf.neighbours(0))  # Проталкиваем поток по всем ребрам истока
-    for node in neighbours:
-        if Gf.has_edge(0, node, 'forward') and visited[node]:
-            capacity = Gf.get_capacity(0, node, 'forward')
-            Gf.add_edge(node, 0, 'backward', capacity)
-            e[node] = capacity
-            e[0] -= capacity
-    for node in neighbours:
-        Gf.remove_edge(0, node, 'forward')
-
-    # for i in range(1, n - 1):
-    #     if not visited[i]:
-    #         queue.append(i)
+    for i in range(1, n - 1):
+        if not visited[i]:
+            queue.append(i)
 
     gr_counter = 0  # Счетчик для запуска bfs для global relabeling
 
