@@ -175,22 +175,25 @@ def makeTLinks(graph, seeds, K, intervals, count_of_seeds, image):
             elif seeds[i][j] == BKGCODE:
                 graph.add_edge(x, SINK, capacity=K)   
             else:
-                graph.add_edge(
-                    SOURCE, 
-                    x, 
-                    capacity=regionalPenalty(
-                        intervals[getInterval(image, i, j), 2],
-                        count_of_seeds
+                if (intervals[getInterval(image, i, j), 2] != 0 and count_of_seeds):
+                    graph.add_edge(
+                        SOURCE, 
+                        x, 
+                        capacity=regionalPenalty(
+                            intervals[getInterval(image, i, j), 2],
+                            count_of_seeds
+                        )
                     )
-                )  
-                graph.add_edge(
-                    x, 
-                    SINK, 
-                    capacity=regionalPenalty(
-                        intervals[getInterval(image, i, j), 1],
-                        count_of_seeds
-                    )
-                ) 
+                if (intervals[getInterval(image, i, j), 1] != 0 and \
+                    count_of_seeds):
+                    graph.add_edge(
+                        x, 
+                        SINK, 
+                        capacity=regionalPenalty(
+                            intervals[getInterval(image, i, j), 1],
+                            count_of_seeds
+                        )
+                    ) 
               
 
 def displayCut(image, cuts):
@@ -322,19 +325,22 @@ def compareImages(image, image_compare):
       
 def imageSegmentation( ):
 
-    imagefile= 'banana1-gr.jpg'
-    imagefile_compare = 'banana3-320.jpg'
+    #imagefile= 'banana1-gr.jpg'
+    imagefile = 'banana3-320.jpg'
+    #imagefile_compare = 'banana3-320.jpg'
     
     pathname = os.path.splitext(imagefile)[0]
     image = cv2.imread(imagefile, cv2.IMREAD_GRAYSCALE)
-    image_compare = cv2.imread(imagefile_compare, cv2.IMREAD_GRAYSCALE)
-    
+    #image_compare = cv2.imread(imagefile_compare, cv2.IMREAD_GRAYSCALE)
+    print(len(image))
+    print(len(image[0]))
     graph, seededImage, K, seeds, intervals = buildGraph(image)
     createHistogram(imagefile)
     cv2.imwrite(pathname + "seeded.jpg", seededImage)
 
-    Gf, partition = min_cut(graph, graph.number_of_nodes(), graph.number_of_edges())
+    Gf, partition,cut_value = min_cut(graph, graph.number_of_nodes(), graph.number_of_edges())
     reachable, non_reachable = partition
+    print(cut_value)
     # cut_value, partition = nx.minimum_cut(graph, SOURCE, SINK)
     #
     # reachable, non_reachable = partition
@@ -348,10 +354,10 @@ def imageSegmentation( ):
     [('c', 'y'), ('x', 'b')]
     cut_value == sum(graph.edges[u, v]["capacity"] for (u, v) in cutset)
   
-    #Для того чтобы просто показать разбиение
+    #Разбиение
     image = displayCut(image, cutset)
     
-    #Для того чтобы получить метрику разбиения
+    #Метрика разбиения
     #image = drawContur(image,reachable, non_reachable)
     
     show_image(image)
