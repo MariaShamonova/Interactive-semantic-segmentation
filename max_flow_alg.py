@@ -477,8 +477,8 @@ def dfs(G, u, n):  # Поиск в глубину
     while len(stack) != 0:
         cur = stack.pop()
         for node, dict in G.neighbours(cur).items():
-            for flow in dict.values():
-                if flow != 0 and not visited[node]:
+            for direction, flow in dict.items():
+                if direction == 'forward' and flow != 0 and not visited[node]:
                     count += 1
                     reachable.append(node)
                     visited[node] = True
