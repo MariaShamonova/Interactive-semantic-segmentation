@@ -336,7 +336,7 @@ def max_flow_additional(Gf, n, m, lst_nodes):  # Алгоритм макс по�
     h = [0 for i in range(n)]
     queue = deque()
 
-    neighbours = [elem[0] for elem in lst_nodes]  # Проталкиваем поток по всем ребрам истока
+    neighbours = list(Gf.neighbours(0))  # Проталкиваем поток по всем ребрам истока
     for node in neighbours:
         if Gf.has_edge(0, node, 'forward'):
             capacity = Gf.get_capacity(0, node, 'forward')
