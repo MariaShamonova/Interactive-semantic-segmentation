@@ -48,13 +48,13 @@ class ResidualNetwork(object):
     #     return self.G.edges[u, v, d]
 
     def change_capacity(self, u, v, c):
-        old_capacity = self.get_capacity(u, v, 'forward')
         self.capacity[u].update({v: c})
-        add_flow = c - old_capacity
         if self.has_edge(u, v, 'forward'):
+            old_capacity = self.get_capacity(u, v, 'forward')
+            add_flow = c - old_capacity
             self.update_flow(u, v, 'forward', add_flow, True)
         else:
-            self.add_edge(u, v, 'forward', add_flow)
+            self.add_edge(u, v, 'forward', c)
 
     def get_capacity(self, u, v, d):
         if d == 'forward':
@@ -184,25 +184,6 @@ class ResidualNetwork(object):
                     visited[nbr] = True
                     queue.append(nbr)
                     visited_queue.append(nbr)
-        # for nbr, dict in self.neighbours(n-1).items():
-        #     for direction, flow in dict.items():
-        #         capacity = self.get_capacity(n-1, nbr, direction)
-        #         if direction == 'backward' and flow != capacity and nbr != 0:
-        #             d[nbr] = 1
-        #             visited[nbr] = True
-        #             queue.append(nbr)
-        #             visited_queue.append(nbr)
-        # while len(queue) != 0:
-        #     cur = queue.popleft()
-        #     for nbr, dict in self.neighbours(cur).items():
-        #         for direction, flow in dict.items():
-        #             capacity = self.get_capacity(cur, nbr, direction)
-        #             if direction == 'backward' and flow != capacity and nbr != 0 \
-        #                     and not visited[nbr]:
-        #                 d[nbr] = d[cur] + 1
-        #                 visited[nbr] = True
-        #                 queue.append(nbr)
-        #                 visited_queue.append(nbr)
         return d, visited_queue, visited
 
 
@@ -344,16 +325,18 @@ def max_flow(G, n, m):  # Алгоритм макс потока v0.02
 
 def redo_graph(Gf, n, new_edges):
     for elem in new_edges:
-        Gf.change_capacity(0, elem[0], elem[1])
-        Gf.change_capacity(elem[0], n-1, elem[2])
+        if elem[1] != 0:
+            Gf.change_capacity(0, elem[0], elem[1])
+        if elem[2] != 0:
+            Gf.change_capacity(elem[0], n-1, elem[2])
 
 
-def max_flow_additional(Gf, n, m):  # Алгоритм макс потока v0.02
+def max_flow_additional(Gf, n, m, lst_nodes):  # Алгоритм макс потока v0.02
     e = [0 for i in range(n)]  # Инициализация избытка, высоты и очереди
     h = [0 for i in range(n)]
     queue = deque()
 
-    neighbours = list(Gf.neighbours(0).keys())  # Проталкиваем поток по всем ребрам истока
+    neighbours = [elem[0] for elem in lst_nodes]  # Проталкиваем поток по всем ребрам истока
     for node in neighbours:
         if Gf.has_edge(0, node, 'forward'):
             capacity = Gf.get_capacity(0, node, 'forward')
@@ -362,11 +345,10 @@ def max_flow_additional(Gf, n, m):  # Алгоритм макс потока v0.
                 Gf.update_flow(node, 0, 'backward', flow, True)
             else:
                 Gf.add_edge(node, 0, 'backward', capacity)
+            Gf.remove_edge(0, node, 'forward')
             e[node] = flow
             queue.append(node)
             e[0] -= flow
-    for node in neighbours:
-        Gf.remove_edge(0, node, 'forward')
 
     d, visited_queue, visited = Gf.reversed_bfs_for_t()
     h[0] = n
@@ -433,36 +415,37 @@ def bfs(G, u, n):  # Поиск в ширину
 
 def min_cut(G, n, m):
     Gf, e, h = max_flow(G, n, m)
-    r, v, c = dfs(Gf, 0, n)
+    d, visited_queue, visited = Gf.reversed_bfs_for_t()
     maxflow = e[n - 1]
     mc = [[], []]
     for i in range(n):
-        if v[i]:
-            mc[0].append(i)
-        else:
+        if visited[i]:
             mc[1].append(i)
+        else:
+            mc[0].append(i)
     cut = []
-    for i in range(1, n-1):
+    for i in range(1, n - 1):
         for nbr in Gf.neighbours(i):
-            if v[i] != v[nbr]:
+            if visited[i] != visited[nbr]:
                 cut.append((i, nbr))
     return Gf, mc, cut, maxflow
 
 
-def min_cut_additional(G, n, m):
-    Gf, e, h = max_flow_additional(G, n, m)
-    r, v, c = dfs(Gf, 0, n)
+def min_cut_additional(G, n, m, lst_nodes):
+    redo_graph(G, n, lst_nodes)
+    Gf, e, h = max_flow_additional(G, n, m, lst_nodes)
+    d, visited_queue, visited = Gf.reversed_bfs_for_t()
     maxflow = e[n-1]
     mc = [[], []]
     for i in range(n):
-        if v[i]:
-            mc[0].append(i)
-        else:
+        if visited[i]:
             mc[1].append(i)
+        else:
+            mc[0].append(i)
     cut = []
     for i in range(1, n - 1):
         for nbr in Gf.neighbours(i):
-            if v[i] != v[nbr]:
+            if visited[i] != visited[nbr]:
                 cut.append((i, nbr))
     return Gf, mc, cut, maxflow
 

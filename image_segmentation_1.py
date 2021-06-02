@@ -11,7 +11,7 @@ import numpy as np
 import os
 import sys
 import argparse
-from max_flow_alg import min_cut, min_cut_additional
+from max_flow_alg import min_cut, min_cut_additional, redo_graph
 from math import exp, pow
 import networkx as nx
 
@@ -229,30 +229,133 @@ def createHistogram(imagefile):
     plt.plot(histr)
     plt.show()
     
-def addedSeeds(image, graph, K, intervals, imagefile):
-    image_gray =  cv2.imread(imagefile, cv2.IMREAD_GRAYSCALE)
-    def drawLines(x, y, pixelType):
-        vertex = y * len(image[0]) + x
-        allValue = intervals[getInterval(image_gray, y, x), 0]
-        if pixelType == OBJ:
-            if (graph.has_edge(SOURCE, vertex) and graph.has_edge(vertex, SINK)):
-          
-                color, code = OBJCOLOR, OBJCODE
-                
-                graph.edges[SOURCE, vertex]["capacity"] +=  K + regionalPenalty(intervals[getInterval(image_gray, y, x), 1], allValue)
-                graph.edges[vertex, SINK]["capacity"] += regionalPenalty(intervals[getInterval(image_gray, y, x), 2], allValue)
-         
-                cv2.circle(image, (x, y), radius, color, thickness)
-        else:  
-            if (graph.has_edge(SOURCE, vertex) and graph.has_edge(vertex, SINK)):
-          
-                color, code = BKGCOLOR, BKGCODE
+# def addedSeeds(image, graph, K, intervals, imagefile):
+#     image_gray =  cv2.imread(imagefile, cv2.IMREAD_GRAYSCALE)
+#     def drawLines(x, y, pixelType):
+#         vertex = y * len(image[0]) + x
+#         allValue = intervals[getInterval(image_gray, y, x), 0]
+#         if pixelType == OBJ:
+#             if (graph.has_edge(SOURCE, vertex) and graph.has_edge(vertex, SINK)):
+#
+#                 color, code = OBJCOLOR, OBJCODE
+#
+#                 graph.edges[SOURCE, vertex]["capacity"] +=  K + regionalPenalty(intervals[getInterval(image_gray, y, x), 1], allValue)
+#                 graph.edges[vertex, SINK]["capacity"] += regionalPenalty(intervals[getInterval(image_gray, y, x), 2], allValue)
+#
+#                 cv2.circle(image, (x, y), radius, color, thickness)
+#         else:
+#             if (graph.has_edge(SOURCE, vertex) and graph.has_edge(vertex, SINK)):
+#
+#                 color, code = BKGCOLOR, BKGCODE
+#
+#                 graph.edges[SOURCE, vertex]["capacity"] +=  K + regionalPenalty(intervals[getInterval(image_gray, y, x), 2], allValue)
+#                 graph.edges[vertex, SINK]["capacity"] += regionalPenalty(intervals[getInterval(image_gray, y, x), 1], allValue)
+#
+#                 cv2.circle(image, (x, y), radius, color, thickness)
+#
+#
+#     def onMouse(event, x, y, flags, pixelType):
+#         global drawing
+#         if event == cv2.EVENT_LBUTTONDOWN:
+#             drawing = True
+#             drawLines(x, y, pixelType)
+#         elif event == cv2.EVENT_MOUSEMOVE and drawing:
+#             drawLines(x, y, pixelType)
+#         elif event == cv2.EVENT_LBUTTONUP:
+#             drawing = False
+#
+#     def paintSeeds(pixelType):
+#         print("Planting", pixelType, "seeds")
+#         global drawing
+#         drawing = False
+#         windowname = "Plant " + pixelType + " seeds"
+#         cv2.namedWindow(windowname, cv2.WINDOW_AUTOSIZE)
+#         cv2.setMouseCallback(windowname, onMouse, pixelType)
+#         while (1):
+#             cv2.imshow(windowname, image)
+#             if cv2.waitKey(1) & 0xFF == 27:
+#                 break
+#         cv2.destroyAllWindows()
+#
+#     radius = 10
+#     thickness = -1 # fill the whole circle
+#     global drawing
+#     drawing = False
+#
+#     paintSeeds(OBJ)
+#     paintSeeds(BKG)
+#
+#     return graph
 
-                graph.edges[SOURCE, vertex]["capacity"] +=  K + regionalPenalty(intervals[getInterval(image_gray, y, x), 2], allValue)
-                graph.edges[vertex, SINK]["capacity"] += regionalPenalty(intervals[getInterval(image_gray, y, x), 1], allValue)
-                
-                cv2.circle(image, (x, y), radius, color, thickness)
-        
+
+def addedSeeds(image, graph, K, intervals, imagefile):
+    image_gray = cv2.imread(imagefile, cv2.IMREAD_GRAYSCALE)
+    lst_vertex = []
+
+    def drawLines(x, y, pixelType):
+        vertex = y * len(image[0]) + x + 1
+        allValue = intervals[getInterval(image_gray, y, x), 0]
+
+        if pixelType == OBJ:
+            color, code = OBJCOLOR, OBJCODE
+            cv2.circle(image, (x, y), radius, color, thickness)
+            if not (graph.has_edge(SOURCE, vertex) and not graph.has_edge(vertex, SINK)
+                    and graph.edges[SOURCE, vertex]["capacity"] == K)\
+                    or not (not graph.has_edge(SOURCE, vertex) and graph.has_edge(vertex, SINK)
+                            and graph.edges[vertex, SINK]["capacity"] == K):
+                # graph.edges[SOURCE, vertex]["capacity"] += K + regionalPenalty(
+                #     intervals[getInterval(image_gray, y, x), 1], allValue)
+                # graph.edges[vertex, SINK]["capacity"] += regionalPenalty(intervals[getInterval(image_gray, y, x), 2],
+                #                                                          allValue)
+                if graph.has_edge(SOURCE, vertex) and graph.has_edge(vertex, SINK):
+                    to_source = graph.edges[SOURCE, vertex]["capacity"] + K + \
+                                regionalPenalty(intervals[getInterval(image_gray, y, x), 1], allValue)
+                    to_sink = graph.edges[vertex, SINK]["capacity"] + \
+                              regionalPenalty(intervals[getInterval(image_gray, y, x), 2], allValue)
+                elif not graph.has_edge(SOURCE, vertex) and graph.has_edge(vertex, SINK):
+                    to_source = K + \
+                                regionalPenalty(intervals[getInterval(image_gray, y, x), 1], allValue)
+                    to_sink = graph.edges[vertex, SINK]["capacity"] + \
+                              regionalPenalty(intervals[getInterval(image_gray, y, x), 2], allValue)
+                elif graph.has_edge(SOURCE, vertex) and graph.has_edge(vertex, SINK):
+                    to_source = graph.edges[SOURCE, vertex]["capacity"] + K + \
+                                regionalPenalty(intervals[getInterval(image_gray, y, x), 1], allValue)
+                    to_sink = regionalPenalty(intervals[getInterval(image_gray, y, x), 2], allValue)
+                else:
+                    to_source = K
+                    to_sink = 0
+
+                lst_vertex.append((vertex, to_source, to_sink))
+        else:
+            color, code = BKGCOLOR, BKGCODE
+            cv2.circle(image, (x, y), radius, color, thickness)
+            if not (graph.has_edge(SOURCE, vertex) and not graph.has_edge(vertex, SINK)
+                    and graph.edges[SOURCE, vertex]["capacity"] == K)\
+                    or not (not graph.has_edge(SOURCE, vertex) and graph.has_edge(vertex, SINK)
+                            and graph.edges[vertex, SINK]["capacity"] == K):
+
+                # graph.edges[SOURCE, vertex]["capacity"] += regionalPenalty(
+                #     intervals[getInterval(image_gray, y, x), 2], allValue)
+                # graph.edges[vertex, SINK]["capacity"] += K + regionalPenalty(intervals[getInterval(image_gray, y, x), 1],
+                #                                                          allValue)
+                if graph.has_edge(SOURCE, vertex) and graph.has_edge(vertex, SINK):
+                    to_source = graph.edges[SOURCE, vertex]["capacity"] + \
+                                regionalPenalty(intervals[getInterval(image_gray, y, x), 1], allValue)
+                    to_sink = graph.edges[vertex, SINK]["capacity"] + K + \
+                              regionalPenalty(intervals[getInterval(image_gray, y, x), 2], allValue)
+                elif not graph.has_edge(SOURCE, vertex) and graph.has_edge(vertex, SINK):
+                    to_source = regionalPenalty(intervals[getInterval(image_gray, y, x), 1], allValue)
+                    to_sink = graph.edges[vertex, SINK]["capacity"] + K + \
+                              regionalPenalty(intervals[getInterval(image_gray, y, x), 2], allValue)
+                elif graph.has_edge(SOURCE, vertex) and graph.has_edge(vertex, SINK):
+                    to_source = graph.edges[SOURCE, vertex]["capacity"] + \
+                                regionalPenalty(intervals[getInterval(image_gray, y, x), 1], allValue)
+                    to_sink = K + regionalPenalty(intervals[getInterval(image_gray, y, x), 2], allValue)
+                else:
+                    to_source = 0
+                    to_sink = K
+
+                lst_vertex.append((vertex, to_source, to_sink))
 
     def onMouse(event, x, y, flags, pixelType):
         global drawing
@@ -278,14 +381,15 @@ def addedSeeds(image, graph, K, intervals, imagefile):
         cv2.destroyAllWindows()
 
     radius = 10
-    thickness = -1 # fill the whole circle
+    thickness = -1  # fill the whole circle
     global drawing
     drawing = False
 
     paintSeeds(OBJ)
     paintSeeds(BKG)
-    
-    return graph
+
+    return graph, lst_vertex
+
     
 def drawContur(image, reachable, non_reachable):
     def colorPixel(i, j, color):
@@ -326,7 +430,8 @@ def compareImages(image, image_compare):
 def imageSegmentation( ):
 
     #imagefile= 'banana1-gr.jpg'
-    imagefile = 'banana3-320.jpg'
+    imagefile = 'book-gr.jpg'
+    size = (240, 180)
     #imagefile_compare = 'banana3-320.jpg'
     
     pathname = os.path.splitext(imagefile)[0]
@@ -338,21 +443,13 @@ def imageSegmentation( ):
     createHistogram(imagefile)
     cv2.imwrite(pathname + "seeded.jpg", seededImage)
 
-    Gf, partition, cutset, cut_value = min_cut(graph, graph.number_of_nodes(), graph.number_of_edges())
+    n = graph.number_of_nodes()
+    m = graph.number_of_edges()
+    Gf, partition, cutset, cut_value = min_cut(graph, n, m)
     reachable, non_reachable = partition
+
     print(cut_value)
-    # cut_value, partition = nx.minimum_cut(graph, SOURCE, SINK)
-    #
-    # reachable, non_reachable = partition
-    print('reachable: ',len(reachable))
-    
-    cutset = set()
-
-    for u, nbrs in ((n, graph[n]) for n in reachable):
-        cutset.update((u, v) for v in nbrs if v in non_reachable)
-
-    [('c', 'y'), ('x', 'b')]
-    cut_value == sum(graph.edges[u, v]["capacity"] for (u, v) in cutset)
+    print('reachable: ', len(reachable))
   
     #Разбиение
     image = displayCut(image, cutset)
@@ -371,22 +468,40 @@ def imageSegmentation( ):
     answer = input("If you want to improve segmentation inter Y else N:")
     while answer == "Y":
 
-        graph = addedSeeds(image, graph, K, intervals, imagefile)
+        graph, lst_vertex = addedSeeds(image, graph, K, intervals, imagefile)
 
-        cut_value, partition = nx.minimum_cut(graph, SOURCE, SINK)
+        Gf, partition, cutset2, cut_value = min_cut_additional(Gf, n, m, lst_vertex)
+        # cut_value, partition = nx.minimum_cut(graph, SOURCE, SINK)
         reachable, non_reachable = partition
-        cutset = set()
-    
-        for u, nbrs in ((n, graph[n]) for n in reachable):
-            cutset.update((u, v) for v in nbrs if v in non_reachable)
-    
-        [('c', 'y'), ('x', 'b')]
-        cut_value == sum(graph.edges[u, v]["capacity"] for (u, v) in cutset)
+        print(cut_value)
+        print('reachable: ', len(reachable))
+
         image = cv2.imread(imagefile, cv2.IMREAD_GRAYSCALE)
     
-        image = displayCut(image, cutset)
+        image_rez = displayCut(image, cutset2)
 
-        show_image(image)
+        show_image(image_rez)
+
+        # cut_value, partition = nx.minimum_cut(graph, SOURCE, SINK)
+        # reachable, non_reachable = partition
+        # cutset = []
+        # v = [False for i in range(n)]
+        # for node in reachable:
+        #     v[node] = True
+        #
+        # for i in range(n):
+        #     for nbr in graph.adj[i].keys():
+        #         if v[i] != v[nbr]:
+        #             cutset.append((i, nbr))
+        #
+        # print(cut_value)
+        # print('reachable: ', len(reachable))
+        #
+        # # Разбиение
+        # image = displayCut(image, cutset)
+        #
+        # show_image(image)
+
         answer = input("If you want to improve segmentation inter Y else N:")
        
 
