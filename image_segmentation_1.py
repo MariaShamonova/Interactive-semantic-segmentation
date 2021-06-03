@@ -14,6 +14,7 @@ import argparse
 from max_flow_alg import min_cut, min_cut_additional, redo_graph
 from math import exp, pow
 import networkx as nx
+import time
 
 SIGMA = 30
 LAMBDA = 1
@@ -422,65 +423,81 @@ def compareImages(image, image_compare):
         for j in range(c):
             if (image[i][j] == image_compare[i][j]):
                 correctly += 1
-    relationship = correctly / ( r * c) 
-    print('relationship: ', relationship)
+    relationship = correctly / ( r * c)
     measure_zhakkar = correctly / r *c * 2
     return relationship, measure_zhakkar
       
 def imageSegmentation( ):
 
-    #imagefile= 'banana1-gr.jpg'
     imagefile = 'book-gr.jpg'
-    size = (240, 180)
-    #imagefile_compare = 'banana3-320.jpg'
+    imagefile_compare = 'book.bmp'
     
     pathname = os.path.splitext(imagefile)[0]
     image = cv2.imread(imagefile, cv2.IMREAD_GRAYSCALE)
-    #image_compare = cv2.imread(imagefile_compare, cv2.IMREAD_GRAYSCALE)
+    image_compare = cv2.imread(imagefile_compare, cv2.IMREAD_GRAYSCALE)
     print(len(image))
     print(len(image[0]))
     graph, seededImage, K, seeds, intervals = buildGraph(image)
-    createHistogram(imagefile)
+    # createHistogram(imagefile)
     cv2.imwrite(pathname + "seeded.jpg", seededImage)
 
     n = graph.number_of_nodes()
     m = graph.number_of_edges()
+    t0 = time.time()
     Gf, partition, cutset, cut_value = min_cut(graph, n, m)
+    t1 = time.time()
     reachable, non_reachable = partition
 
+    print('Time: {}'.format(t1-t0))
     print(cut_value)
     print('reachable: ', len(reachable))
   
     #Разбиение
-    image = displayCut(image, cutset)
+    image_res = displayCut(image, cutset)
     
     #Метрика разбиения
-    #image = drawContur(image,reachable, non_reachable)
+    image_contur = drawContur(image,reachable, non_reachable)
     
-    show_image(image)
+    show_image(image_contur)
+    show_image(image_res)
     
-    #relationship, measure_zhakkar = compareImages(image, image_compare)
-    #print('1 metrica: ', relationship)
-    #print('2 metrica: ', measure_zhakkar)
+    relationship, measure_zhakkar = compareImages(image_contur, image_compare)
+    print('1 metrica: ', relationship)
+    print('2 metrica: ', measure_zhakkar)
     savename = pathname + "cut.jpg"
-    cv2.imwrite(savename, image)
-    
+    cv2.imwrite(savename, image_res)
+    savename = pathname + "contur.jpg"
+    cv2.imwrite(savename, image_contur)
+
     answer = input("If you want to improve segmentation inter Y else N:")
     while answer == "Y":
 
-        graph, lst_vertex = addedSeeds(image, graph, K, intervals, imagefile)
+        graph, lst_vertex = addedSeeds(image_res, graph, K, intervals, imagefile)
 
-        Gf, partition, cutset2, cut_value = min_cut_additional(Gf, n, m, lst_vertex)
+        Gf, partition, cutset, cut_value = min_cut_additional(Gf, n, m, lst_vertex)
         # cut_value, partition = nx.minimum_cut(graph, SOURCE, SINK)
         reachable, non_reachable = partition
         print(cut_value)
         print('reachable: ', len(reachable))
 
         image = cv2.imread(imagefile, cv2.IMREAD_GRAYSCALE)
-    
-        image_rez = displayCut(image, cutset2)
 
-        show_image(image_rez)
+        # Разбиение
+        image_res = displayCut(image, cutset)
+
+        # Метрика разбиения
+        image_contur = drawContur(image, reachable, non_reachable)
+
+        relationship, measure_zhakkar = compareImages(image_contur, image_compare)
+        print('1 metrica: ', relationship)
+        print('2 metrica: ', measure_zhakkar)
+        savename = pathname + "cut_improve.jpg"
+        cv2.imwrite(savename, image_res)
+        savename = pathname + "contur_improve.jpg"
+        cv2.imwrite(savename, image_contur)
+
+        show_image(image_contur)
+        show_image(image_res)
 
         # cut_value, partition = nx.minimum_cut(graph, SOURCE, SINK)
         # reachable, non_reachable = partition
