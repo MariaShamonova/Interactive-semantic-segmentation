@@ -412,13 +412,27 @@ def compareImages(image, image_compare):
     size = (c, r)
     image = cv2.resize(image, size)
 
+    # b_obj = np.ones((r, c))
+    # for node in reachable:
+    #     if node != 0 :
+    #         rows = (node - 1) // c
+    #         columns = (node - 1) % c
+    #         b_obj[rows][columns] = 0
+
     correctly = 0
+    intersection = 0
+    union = 0
     for i in range(r):
         for j in range(c):
-            if (image[i][j] == image_compare[i][j]):
+            if image[i][j] == image_compare[i][j]:
                 correctly += 1
-    relationship = correctly / ( r * c)
-    measure_zhakkar = correctly / r *c * 2
+            if image[i][j] == 0 and image_compare[i][j] == 0:
+                intersection += 1
+            if image[i][j] == 0 or image_compare[i][j] == 0:
+                union += 1
+
+    relationship = correctly / (r * c)
+    measure_zhakkar = intersection / union
     return relationship, measure_zhakkar
 
 
@@ -452,10 +466,7 @@ def imageSegmentation( ):
     
     #Метрика разбиения
     image_contur = drawContur(image,reachable, non_reachable)
-    
-    show_image(image_contur)
-    show_image(image_res)
-    
+
     relationship, measure_zhakkar = compareImages(image_contur, image_compare)
     print('1 metrica: ', relationship)
     print('2 metrica: ', measure_zhakkar)
@@ -463,6 +474,9 @@ def imageSegmentation( ):
     cv2.imwrite(savename, image_res)
     savename = pathname + "contur.jpg"
     cv2.imwrite(savename, image_contur)
+
+    show_image(image_contur)
+    show_image(image_res)
 
     answer = input("If you want to improve segmentation inter Y else N:")
     while answer == "Y":
