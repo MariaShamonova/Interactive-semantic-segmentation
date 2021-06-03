@@ -304,10 +304,7 @@ def addedSeeds(image, graph, K, intervals, imagefile):
                     and graph.edges[SOURCE, vertex]["capacity"] == K)\
                     or not (not graph.has_edge(SOURCE, vertex) and graph.has_edge(vertex, SINK)
                             and graph.edges[vertex, SINK]["capacity"] == K):
-                # graph.edges[SOURCE, vertex]["capacity"] += K + regionalPenalty(
-                #     intervals[getInterval(image_gray, y, x), 1], allValue)
-                # graph.edges[vertex, SINK]["capacity"] += regionalPenalty(intervals[getInterval(image_gray, y, x), 2],
-                #                                                          allValue)
+
                 if graph.has_edge(SOURCE, vertex) and graph.has_edge(vertex, SINK):
                     to_source = graph.edges[SOURCE, vertex]["capacity"] + K + \
                                 regionalPenalty(intervals[getInterval(image_gray, y, x), 1], allValue)
@@ -335,10 +332,6 @@ def addedSeeds(image, graph, K, intervals, imagefile):
                     or not (not graph.has_edge(SOURCE, vertex) and graph.has_edge(vertex, SINK)
                             and graph.edges[vertex, SINK]["capacity"] == K):
 
-                # graph.edges[SOURCE, vertex]["capacity"] += regionalPenalty(
-                #     intervals[getInterval(image_gray, y, x), 2], allValue)
-                # graph.edges[vertex, SINK]["capacity"] += K + regionalPenalty(intervals[getInterval(image_gray, y, x), 1],
-                #                                                          allValue)
                 if graph.has_edge(SOURCE, vertex) and graph.has_edge(vertex, SINK):
                     to_source = graph.edges[SOURCE, vertex]["capacity"] + \
                                 regionalPenalty(intervals[getInterval(image_gray, y, x), 1], allValue)
@@ -411,7 +404,8 @@ def drawContur(image, reachable, non_reachable):
             colorPixel(((c - 1 )// col) , ((c - 1 ) % col), 0)
     
     return image
-    
+
+
 def compareImages(image, image_compare):
     
     r, c = len(image_compare), len(image_compare[0])
@@ -426,7 +420,8 @@ def compareImages(image, image_compare):
     relationship = correctly / ( r * c)
     measure_zhakkar = correctly / r *c * 2
     return relationship, measure_zhakkar
-      
+
+
 def imageSegmentation( ):
 
     imagefile = 'book-gr.jpg'
@@ -498,26 +493,6 @@ def imageSegmentation( ):
 
         show_image(image_contur)
         show_image(image_res)
-
-        # cut_value, partition = nx.minimum_cut(graph, SOURCE, SINK)
-        # reachable, non_reachable = partition
-        # cutset = []
-        # v = [False for i in range(n)]
-        # for node in reachable:
-        #     v[node] = True
-        #
-        # for i in range(n):
-        #     for nbr in graph.adj[i].keys():
-        #         if v[i] != v[nbr]:
-        #             cutset.append((i, nbr))
-        #
-        # print(cut_value)
-        # print('reachable: ', len(reachable))
-        #
-        # # Разбиение
-        # image = displayCut(image, cutset)
-        #
-        # show_image(image)
 
         answer = input("If you want to improve segmentation inter Y else N:")
        
